@@ -1167,9 +1167,16 @@
         schedule.parentTodoId = schedules[index].parentTodoId;
         schedules[index] = schedule;
         
-        // 使用 dataService 更新
         if (window.dataService) {
           await window.dataService.saveSchedule(schedule);
+        }
+        
+        if (schedule.parentTodoId) {
+          updateTodoProgressFromSchedules(schedule.parentTodoId);
+          const todo = todos.find(t => t.id === schedule.parentTodoId);
+          if (todo && schedule.quadrant) {
+            todo.quadrant = schedule.quadrant;
+          }
         }
       }
     } else {
@@ -1262,6 +1269,8 @@
       todo.progress = avgProgress;
       if (avgProgress >= 100 && relatedSchedules.every(s => s.status === 'completed')) {
         todo.completed = true;
+      } else if (avgProgress < 100) {
+        todo.completed = false;
       }
     }
   }
