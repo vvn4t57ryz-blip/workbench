@@ -374,13 +374,20 @@
     });
     
     const today = now.toISOString().split('T')[0];
-    const todaySchedules = schedules.filter(s => s.date === today && s.status !== 'completed' && s.status !== 'cancelled' && !s.parentTodoId);
     
-    todaySchedules.forEach(schedule => {
+    schedules.forEach(schedule => {
+      if (schedule.status === 'completed' || schedule.status === 'cancelled') return;
+      if (schedule.parentTodoId) return;
+      
+      const scheduleDate = schedule.date;
+      if (!scheduleDate) return;
+      
+      const scheduleDateTime = new Date(scheduleDate + 'T' + (schedule.start || '00:00'));
+      const hoursToSchedule = (scheduleDateTime - now) / (1000 * 60 * 60);
+      
+      if (hoursToSchedule > 168) return;
+      
       const progress = schedule.progress || 0;
-      const startHour = parseInt(schedule.start.split(':')[0]);
-      const currentHour = now.getHours();
-      const hoursUntil = startHour - currentHour;
       
       let isUrgent = false;
       let isImportant = false;
@@ -389,11 +396,11 @@
         isUrgent = schedule.quadrant.includes('urgent');
         isImportant = schedule.quadrant.includes('important');
       } else {
-        isUrgent = hoursUntil < 3;
+        isUrgent = hoursToSchedule < 24;
         isImportant = progress < 30;
       }
       
-      if (progress < 80 && hoursUntil < 24) {
+      if (progress < 80) {
         warnings.push({
           type: 'schedule',
           id: schedule.id,
@@ -404,7 +411,7 @@
           partners: schedule.participants,
           isUrgent: isUrgent,
           isImportant: isImportant,
-          hoursToDeadline: hoursUntil
+          hoursToDeadline: hoursToSchedule
         });
       }
     });
