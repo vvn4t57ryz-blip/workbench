@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>语法检查测试页面</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>JavaScript 语法检查</h1>
+  <div id="results"></div>
+  
+  <script>
+    // 测试环境变量（模拟）
+    window.SUPABASE_URL = '';
+    window.SUPABASE_ANON_KEY = '';
+  </script>
+  
+  <!-- 加载测试脚本 -->
+  <script src="./src/scripts/supabaseClient.js" onerror="document.getElementById('results').innerHTML += '<p style=color:red>supabaseClient.js 加载失败</p>'"></script>
+  <script src="./src/scripts/dataService.js" onerror="document.getElementById('results').innerHTML += '<p style=color:red>dataService.js 加载失败</p>'"></script>
+  <script src="./src/scripts/app.js" onerror="document.getElementById('results').innerHTML += '<p style=color:red>app.js 加载失败</p>'"></script>
+  
+  <script>
+    window.onload = function() {
+      const results = document.getElementById('results');
+      
+      // 检查全局对象是否存在
+      if (window.supabaseClient) {
+        results.innerHTML += '<p style=color:green>✓ supabaseClient 已加载</p>';
+      } else {
+        results.innerHTML += '<p style=color:red>✗ supabaseClient 未加载</p>';
+      }
+      
+      if (window.dataService) {
+        results.innerHTML += '<p style=color:green>✓ dataService 已加载</p>';
+      } else {
+        results.innerHTML += '<p style=color:red>✗ dataService 未加载</p>';
+      }
+      
+      // 检查关键方法是否存在
+      if (window.dataService && typeof window.dataService.getTodos === 'function') {
+        results.innerHTML += '<p style=color:green>✓ dataService.getTodos 方法存在</p>';
+      } else {
+        results.innerHTML += '<p style=color:red>✗ dataService.getTodos 方法不存在</p>';
+      }
+      
+      if (window.dataService && typeof window.dataService.saveTodos === 'function') {
+        results.innerHTML += '<p style=color:green>✓ dataService.saveTodos 方法存在</p>';
+      } else {
+        results.innerHTML += '<p style=color:red>✗ dataService.saveTodos 方法不存在</p>';
+      }
+      
+      results.innerHTML += '<h2>语法检查完成！</h2>';
+      results.innerHTML += '<p>如果所有项都显示绿色勾号，则说明语法检查通过。</p>';
+      results.innerHTML += '<p><a href="index.html">返回主页</a></p>';
+    };
+  </script>
+</body>
+</html>
