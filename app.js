@@ -1168,7 +1168,8 @@
     if (id) {
       const index = schedules.findIndex(s => s.id === parseInt(id));
       if (index !== -1) {
-        schedule.parentTodoId = schedules[index].parentTodoId;
+        const oldSchedule = schedules[index];
+        schedule.parentTodoId = oldSchedule.parentTodoId;
         schedules[index] = schedule;
         
         if (window.dataService) {
@@ -1178,8 +1179,16 @@
         if (schedule.parentTodoId) {
           updateTodoProgressFromSchedules(schedule.parentTodoId);
           const todo = todos.find(t => t.id === schedule.parentTodoId);
-          if (todo && schedule.quadrant) {
-            todo.quadrant = schedule.quadrant;
+          if (todo) {
+            if (schedule.quadrant) {
+              todo.quadrant = schedule.quadrant;
+            }
+            if (schedule.participants) {
+              todo.partners = schedule.participants;
+            }
+            if (schedule.note) {
+              todo.description = schedule.note;
+            }
           }
         }
       }
@@ -1249,23 +1258,25 @@
           if (window.dataService) {
             await window.dataService.deleteTodo(schedule.parentTodoId);
           }
-          await saveTodos();
-          renderTodoList();
         } else {
           updateTodoProgressFromSchedules(schedule.parentTodoId);
-          await saveTodos();
+          const relatedTodo = todos.find(t => t.id === schedule.parentTodoId);
+          if (relatedTodo) {
+            const firstSchedule = schedules.find(s => s.parentTodoId === schedule.parentTodoId);
+            if (firstSchedule && firstSchedule.quadrant) {
+              relatedTodo.quadrant = firstSchedule.quadrant;
+            }
+          }
         }
       }
       
+      await saveTodos();
       updateStats();
       updateWarningBadge();
       renderTodoList();
       renderGanttChart();
       renderTimeline();
-      
-      if (!document.getElementById('warningModal').classList.contains('hidden')) {
-        renderWarningQuadrants();
-      }
+      renderWarningQuadrants();
       
       closeModal('scheduleEditModal');
       openModal('ganttModal');
