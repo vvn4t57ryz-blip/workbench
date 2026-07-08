@@ -14,6 +14,26 @@
   let notificationList = [];
   let notifiedTasks = new Set();
 
+  // 获取本地日期字符串（修复时区问题，避免 UTC 导致日期偏差）
+  function getLocalDateString(date) {
+    const d = date || new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // HTML 转义，防止用户输入破坏界面结构
+  function escapeHtml(text) {
+    if (text == null) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // 资讯数据 - 真实热点新闻聚合
   const newsData = [
     {
@@ -100,53 +120,71 @@
 
   // 初始化数据（使用 dataService）
   async function initData() {
-    // 检查 dataService 是否可用
-    if (!window.dataService) {
-      console.error('[App] dataService 未初始化');
-      return;
-    }
+    // 如果 dataService 可用，优先使用它
+    if (window.dataService) {
+      // 等待 Supabase 初始化完成
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 等待 Supabase 初始化完成
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // 如果用户已登录，尝试从云端同步数据
-    if (window.dataService.isUsingCloud()) {
-      console.log('[App] 用户已登录，从云端获取数据');
-      todos = await window.dataService.getTodos() || [];
-      schedules = await window.dataService.getSchedules() || [];
+      // 如果用户已登录，尝试从云端同步数据
+      if (window.dataService.isUsingCloud()) {
+        console.log('[App] 用户已登录，从云端获取数据');
+        todos = await window.dataService.getTodos() || [];
+        schedules = await window.dataService.getSchedules() || [];
+      } else {
+        // 使用本地数据
+        console.log('[App] 使用本地数据');
+        todos = window.dataService.getLocalTodos() || [];
+        schedules = window.dataService.getLocalSchedules() || [];
+      }
     } else {
-      // 使用本地数据
-      console.log('[App] 使用本地数据');
-      todos = window.dataService.getLocalTodos() || [];
-      schedules = window.dataService.getLocalSchedules() || [];
+      // 降级：直接从 localStorage 加载
+      console.log('[App] dataService 不可用，直接从 localStorage 加载');
+      const savedTodos = localStorage.getItem('workbench_todos');
+      const savedSchedules = localStorage.getItem('workbench_schedules');
+      todos = savedTodos ? JSON.parse(savedTodos) : [];
+      schedules = savedSchedules ? JSON.parse(savedSchedules) : [];
     }
 
     // 如果没有数据，初始化默认数据
     if (todos.length === 0) {
+      const today = getLocalDateString();
+      const tomorrow = getLocalDateString(new Date(Date.now() + 86400000));
+      const dayAfter = getLocalDateString(new Date(Date.now() + 172800000));
       todos = [
-        { id: 1, name: '完成竞品分析报告', type: 'day', deadline: '2026-07-07T18:00', quadrant: 'urgent-important', priority: 'high', partners: '张三', progress: 100, description: '分析市场上5款竞品产品的功能和定价策略', completed: true },
-        { id: 2, name: '短剧脚本审核', type: 'day', deadline: '2026-07-07T17:00', quadrant: 'normal-important', priority: 'medium', partners: '李四', progress: 60, description: '审核3部新短剧脚本，给出修改意见', completed: false },
-        { id: 3, name: '整理营销素材库', type: 'week', deadline: '2026-07-08T12:00', quadrant: 'normal-normal', priority: 'medium', partners: '', progress: 30, description: '整理Q3营销活动所需的图片和视频素材', completed: false },
-        { id: 4, name: '跟进客户反馈', type: 'day', deadline: '2026-07-07T16:00', quadrant: 'urgent-important', priority: 'high', partners: '王五', progress: 10, description: '跟进上周客户提出的5条产品建议', completed: false },
-        { id: 5, name: '周报汇总', type: 'week', deadline: '2026-07-07T20:00', quadrant: 'urgent-normal', priority: 'low', partners: '', progress: 0, description: '整理本周工作进展，撰写周报', completed: false },
-        { id: 6, name: '团队周会准备', type: 'week', deadline: '2026-07-08T09:00', quadrant: 'normal-important', priority: 'medium', partners: '', progress: 20, description: '准备下周团队周会的演示PPT', completed: false },
-        { id: 7, name: '用户调研分析', type: 'month', deadline: '2026-07-09T18:00', quadrant: 'urgent-important', priority: 'high', partners: '赵六', progress: 0, description: '分析100份用户调研问卷数据', completed: false },
-        { id: 8, name: '文档更新', type: 'month', deadline: '2026-07-10T12:00', quadrant: 'normal-normal', priority: 'low', partners: '', progress: 0, description: '更新产品使用文档', completed: false }
+        { id: 1, name: '完成竞品分析报告', type: 'day', deadline: today + 'T18:00', quadrant: 'urgent-important', priority: 'high', partners: '张三', progress: 100, description: '分析市场上5款竞品产品的功能和定价策略', completed: true },
+        { id: 2, name: '短剧脚本审核', type: 'day', deadline: today + 'T17:00', quadrant: 'normal-important', priority: 'medium', partners: '李四', progress: 60, description: '审核3部新短剧脚本，给出修改意见', completed: false },
+        { id: 3, name: '整理营销素材库', type: 'week', deadline: today + 'T12:00', quadrant: 'normal-normal', priority: 'medium', partners: '', progress: 30, description: '整理Q3营销活动所需的图片和视频素材', completed: false },
+        { id: 4, name: '跟进客户反馈', type: 'day', deadline: today + 'T16:00', quadrant: 'urgent-important', priority: 'high', partners: '王五', progress: 10, description: '跟进上周客户提出的5条产品建议', completed: false },
+        { id: 5, name: '周报汇总', type: 'week', deadline: today + 'T20:00', quadrant: 'urgent-normal', priority: 'low', partners: '', progress: 0, description: '整理本周工作进展，撰写周报', completed: false },
+        { id: 6, name: '团队周会准备', type: 'week', deadline: tomorrow + 'T09:00', quadrant: 'normal-important', priority: 'medium', partners: '', progress: 20, description: '准备下周团队周会的演示PPT', completed: false },
+        { id: 7, name: '用户调研分析', type: 'month', deadline: tomorrow + 'T18:00', quadrant: 'urgent-important', priority: 'high', partners: '赵六', progress: 0, description: '分析100份用户调研问卷数据', completed: false },
+        { id: 8, name: '文档更新', type: 'month', deadline: dayAfter + 'T12:00', quadrant: 'normal-normal', priority: 'low', partners: '', progress: 0, description: '更新产品使用文档', completed: false }
       ];
-      await window.dataService.saveTodos(todos);
+      if (window.dataService) {
+        await window.dataService.saveTodos(todos);
+      } else {
+        localStorage.setItem('workbench_todos', JSON.stringify(todos));
+      }
     }
 
     if (schedules.length === 0) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
+      const tomorrow = getLocalDateString(new Date(Date.now() + 86400000));
+      const dayAfter = getLocalDateString(new Date(Date.now() + 172800000));
+      const day3 = getLocalDateString(new Date(Date.now() + 259200000));
       schedules = [
         { id: 1, date: today, start: '10:00', end: '11:00', name: '产品周会', parentTodoId: 1, quadrant: 'urgent-important', location: '会议室 A301', participants: '张三、李四、王五', note: '讨论Q3产品规划', status: 'completed', progress: 100 },
         { id: 2, date: today, start: '14:00', end: '15:30', name: '营销创意脑暴会', parentTodoId: 3, quadrant: 'normal-important', location: '线上会议', participants: '全组人员', note: '讨论下半年营销活动方案', status: 'in-progress', progress: 45 },
-        { id: 3, date: new Date(Date.now() + 86400000).toISOString().split('T')[0], start: '09:30', end: '10:30', name: '客户需求沟通', parentTodoId: 4, quadrant: 'urgent-important', location: '客户办公室', participants: '张三、客户方', note: '跟进新项目需求', status: 'pending', progress: 0 },
-        { id: 4, date: new Date(Date.now() + 86400000).toISOString().split('T')[0], start: '15:00', end: '16:00', name: '技术评审', parentTodoId: 7, quadrant: 'normal-important', location: '会议室 B202', participants: '研发团队', note: '评审新功能技术方案', status: 'pending', progress: 0 },
-        { id: 5, date: new Date(Date.now() + 172800000).toISOString().split('T')[0], start: '11:00', end: '12:00', name: '项目里程碑评审', parentTodoId: 6, quadrant: 'urgent-important', location: '大会议室', participants: '全体成员', note: 'Q2项目进度验收', status: 'pending', progress: 0 },
-        { id: 6, date: new Date(Date.now() + 259200000).toISOString().split('T')[0], start: '14:00', end: '16:00', name: '跨部门协作会议', parentTodoId: null, quadrant: 'normal-normal', location: '线上会议', participants: '产品、研发、设计', note: '讨论协作流程优化', status: 'pending', progress: 0 }
+        { id: 3, date: tomorrow, start: '09:30', end: '10:30', name: '客户需求沟通', parentTodoId: 4, quadrant: 'urgent-important', location: '客户办公室', participants: '张三、客户方', note: '跟进新项目需求', status: 'pending', progress: 0 },
+        { id: 4, date: tomorrow, start: '15:00', end: '16:00', name: '技术评审', parentTodoId: 7, quadrant: 'normal-important', location: '会议室 B202', participants: '研发团队', note: '评审新功能技术方案', status: 'pending', progress: 0 },
+        { id: 5, date: dayAfter, start: '11:00', end: '12:00', name: '项目里程碑评审', parentTodoId: 6, quadrant: 'urgent-important', location: '大会议室', participants: '全体成员', note: 'Q2项目进度验收', status: 'pending', progress: 0 },
+        { id: 6, date: day3, start: '14:00', end: '16:00', name: '跨部门协作会议', parentTodoId: null, quadrant: 'normal-normal', location: '线上会议', participants: '产品、研发、设计', note: '讨论协作流程优化', status: 'pending', progress: 0 }
       ];
-      await window.dataService.saveSchedules(schedules);
+      if (window.dataService) {
+        await window.dataService.saveSchedules(schedules);
+      } else {
+        localStorage.setItem('workbench_schedules', JSON.stringify(schedules));
+      }
     }
   }
 
@@ -161,6 +199,7 @@
     updateWarningBadge();
     renderTodoList();
     renderTimeline();
+    renderWarningQuadrants();
   }
 
   async function saveSchedules() {
@@ -173,6 +212,7 @@
     updateStats();
     updateWarningBadge();
     renderTimeline();
+    renderWarningQuadrants();
   }
 
   // ========== 初始化 Lucide 图标 ==========
@@ -260,7 +300,7 @@
 
   // ========== 统计更新 ==========
   function updateStats() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const todayTodos = todos.filter(t => !t.completed);
     const completedTodos = todos.filter(t => t.completed);
     const todaySchedules = schedules.filter(s => s.date === today);
@@ -303,20 +343,22 @@
     }
 
     const meetingEls = document.getElementById('scheduleTimesContainer');
-    if (meetingEls && todaySchedules.length > 0) {
-      const sortedSchedules = [...todaySchedules].sort((a, b) => a.start.localeCompare(b.start));
-      const displayCount = Math.min(sortedSchedules.length, 3);
-      const colors = ['bg-info-100 text-info-600', 'bg-brand-100 text-brand-600', 'bg-success-100 text-success-600'];
-      
+    if (meetingEls) {
       meetingEls.innerHTML = '';
-      for (let i = 0; i < displayCount; i++) {
-        const schedule = sortedSchedules[i];
-        const time = schedule.start.slice(0, 5);
-        const colorClass = colors[i % colors.length];
-        const div = document.createElement('div');
-        div.className = `w-7 h-7 rounded-full ${colorClass} border-2 border-white flex items-center justify-center`;
-        div.innerHTML = `<span class="text-[9px] font-medium">${time}</span>`;
-        meetingEls.appendChild(div);
+      if (todaySchedules.length > 0) {
+        const sortedSchedules = [...todaySchedules].sort((a, b) => a.start.localeCompare(b.start));
+        const displayCount = Math.min(sortedSchedules.length, 3);
+        const colors = ['bg-info-100 text-info-600', 'bg-brand-100 text-brand-600', 'bg-success-100 text-success-600'];
+        
+        for (let i = 0; i < displayCount; i++) {
+          const schedule = sortedSchedules[i];
+          const time = schedule.start.slice(0, 5);
+          const colorClass = colors[i % colors.length];
+          const div = document.createElement('div');
+          div.className = `w-7 h-7 rounded-full ${colorClass} border-2 border-white flex items-center justify-center`;
+          div.innerHTML = `<span class="text-[9px] font-medium">${time}</span>`;
+          meetingEls.appendChild(div);
+        }
       }
     }
   }
@@ -353,7 +395,7 @@
         }
       }
       
-      if (progress < 30 && hoursToDeadline < 168) {
+      if (progress < 80 && hoursToDeadline < 168) {
         warnings.push({
           type: 'todo',
           id: todo.id,
@@ -369,14 +411,26 @@
       }
     });
     
-    const today = now.toISOString().split('T')[0];
-    const todaySchedules = schedules.filter(s => s.date === today && s.status !== 'completed' && s.status !== 'cancelled' && !s.parentTodoId);
+    const today = getLocalDateString(now);
     
-    todaySchedules.forEach(schedule => {
+    const warningTodoIds = new Set(warnings.map(w => w.id));
+    
+    schedules.forEach(schedule => {
+      if (schedule.status === 'completed' || schedule.status === 'cancelled') return;
+      
+      if (schedule.parentTodoId && warningTodoIds.has(schedule.parentTodoId)) {
+        return;
+      }
+      
+      const scheduleDate = schedule.date;
+      if (!scheduleDate) return;
+      
+      const scheduleDateTime = new Date(scheduleDate + 'T' + (schedule.start || '00:00'));
+      const hoursToSchedule = (scheduleDateTime - now) / (1000 * 60 * 60);
+      
+      if (hoursToSchedule > 168) return;
+      
       const progress = schedule.progress || 0;
-      const startHour = parseInt(schedule.start.split(':')[0]);
-      const currentHour = now.getHours();
-      const hoursUntil = startHour - currentHour;
       
       let isUrgent = false;
       let isImportant = false;
@@ -385,11 +439,11 @@
         isUrgent = schedule.quadrant.includes('urgent');
         isImportant = schedule.quadrant.includes('important');
       } else {
-        isUrgent = hoursUntil < 3;
+        isUrgent = hoursToSchedule < 24;
         isImportant = progress < 30;
       }
       
-      if (progress < 50 && hoursUntil < 24) {
+      if (progress < 80) {
         warnings.push({
           type: 'schedule',
           id: schedule.id,
@@ -400,7 +454,7 @@
           partners: schedule.participants,
           isUrgent: isUrgent,
           isImportant: isImportant,
-          hoursToDeadline: hoursUntil
+          hoursToDeadline: hoursToSchedule
         });
       }
     });
@@ -484,7 +538,7 @@
       
       return `
         <div class="quadrant-item" onclick="handleWarningItemClick('${item.type}', ${item.id})">
-          <div class="quadrant-item-title">${item.name}</div>
+          <div class="quadrant-item-title">${escapeHtml(item.name)}</div>
           <div class="quadrant-item-meta">
             <span>${deadlineText}</span>
             <span>·</span>
@@ -515,7 +569,7 @@
     const container = document.getElementById('timelineContainer');
     if (!container) return;
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     
     const todayTodos = todos.filter(t => !t.completed).slice(0, 4);
     const todaySchedules = schedules.filter(s => s.date === today).slice(0, 3);
@@ -527,8 +581,10 @@
       if (a.type === 'schedule' && b.type === 'schedule') {
         return a.start.localeCompare(b.start);
       }
-      if (a.type === 'schedule') return -1;
-      return 1;
+      if (a.type === 'todo' && b.type === 'todo') {
+        return (a.deadline || '').localeCompare(b.deadline || '');
+      }
+      return a.type === 'schedule' ? -1 : 1;
     });
 
     if (items.length === 0) {
@@ -549,7 +605,7 @@
             <div class="flex-1 pb-1">
               <div class="flex items-start justify-between gap-2">
                 <div>
-                  <h4 class="text-sm font-medium text-ink-900">${item.name}</h4>
+                  <h4 class="text-sm font-medium text-ink-900">${escapeHtml(item.name)}</h4>
                   <p class="text-xs text-ink-400 mt-1">待办 · 内容运营</p>
                 </div>
                 <span class="text-xs text-ink-400 whitespace-nowrap">${item.deadline?.split('T')[1]?.substring(0, 5) || '--:--'}</span>
@@ -567,8 +623,8 @@
             <div class="flex-1 pb-1">
               <div class="flex items-start justify-between gap-2">
                 <div>
-                  <h4 class="text-sm font-medium text-ink-900">${item.name}</h4>
-                  <p class="text-xs text-ink-400 mt-1">日程 · ${item.location}</p>
+                  <h4 class="text-sm font-medium text-ink-900">${escapeHtml(item.name)}</h4>
+                  <p class="text-xs text-ink-400 mt-1">日程 · ${item.location ? escapeHtml(item.location) : '暂无地点'}</p>
                 </div>
                 <span class="text-xs text-ink-400 whitespace-nowrap">${item.start}</span>
               </div>
@@ -794,7 +850,7 @@
       return;
     }
 
-    container.innerHTML = todos.map(todo => '<div class="todo-item ' + (todo.completed ? 'completed' : '') + '"><div class="todo-checkbox ' + (todo.completed ? 'checked' : '') + '" onclick="toggleTodo(' + todo.id + ')">' + (todo.completed ? '<i data-lucide="check" class="w-4 h-4 text-white"></i>' : '') + '</div><div class="todo-content"><div class="todo-title-row"><span class="todo-type-tag ' + getTodoTypeClass(todo.type) + '">' + getTodoTypeLabel(todo.type) + '</span><span class="todo-title">' + todo.name + '</span></div><div class="todo-meta-row">' + (todo.quadrant ? '<span class="todo-quadrant ' + getQuadrantClass(todo.quadrant) + '">' + getQuadrantLabel(todo.quadrant) + '</span>' : '') + '<span class="todo-priority ' + todo.priority + '">' + (todo.priority === 'high' ? '高' : todo.priority === 'medium' ? '中' : '低') + '</span><span class="todo-progress-text">进度 ' + (todo.progress || 0) + '%</span></div><div class="todo-meta-row">' + (todo.partners ? '<span class="todo-meta-item"><i data-lucide="users" class="w-3 h-3"></i>' + todo.partners + '</span>' : '') + (todo.deadline ? '<span class="todo-meta-item"><i data-lucide="clock" class="w-3 h-3"></i>' + todo.deadline.split('T')[0] + ' ' + (todo.deadline.split('T')[1] ? todo.deadline.split('T')[1].substring(0, 5) : '--:--') + '</span>' : '') + '</div></div><div class="todo-actions"><button class="todo-action-btn" onclick="editTodo(' + todo.id + ')"><i data-lucide="edit-2" class="w-4 h-4"></i></button><button class="todo-action-btn delete" onclick="deleteTodo(' + todo.id + ')"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>').join('');
+    container.innerHTML = todos.map(todo => '<div class="todo-item ' + (todo.completed ? 'completed' : '') + '"><div class="todo-checkbox ' + (todo.completed ? 'checked' : '') + '" onclick="toggleTodo(' + todo.id + ')">' + (todo.completed ? '<i data-lucide="check" class="w-4 h-4 text-white"></i>' : '') + '</div><div class="todo-content"><div class="todo-title-row"><span class="todo-type-tag ' + getTodoTypeClass(todo.type) + '">' + getTodoTypeLabel(todo.type) + '</span><span class="todo-title">' + escapeHtml(todo.name) + '</span></div><div class="todo-meta-row">' + (todo.quadrant ? '<span class="todo-quadrant ' + getQuadrantClass(todo.quadrant) + '">' + getQuadrantLabel(todo.quadrant) + '</span>' : '') + '<span class="todo-priority ' + todo.priority + '">' + (todo.priority === 'high' ? '高' : todo.priority === 'medium' ? '中' : '低') + '</span><span class="todo-progress-text">进度 ' + (todo.progress || 0) + '%</span></div><div class="todo-meta-row">' + (todo.partners ? '<span class="todo-meta-item"><i data-lucide="users" class="w-3 h-3"></i>' + escapeHtml(todo.partners) + '</span>' : '') + (todo.deadline ? '<span class="todo-meta-item"><i data-lucide="clock" class="w-3 h-3"></i>' + todo.deadline.split('T')[0] + ' ' + (todo.deadline.split('T')[1] ? todo.deadline.split('T')[1].substring(0, 5) : '--:--') + '</span>' : '') + '</div></div><div class="todo-actions"><button class="todo-action-btn" onclick="editTodo(' + todo.id + ')"><i data-lucide="edit-2" class="w-4 h-4"></i></button><button class="todo-action-btn delete" onclick="deleteTodo(' + todo.id + ')"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>').join('');
 
     initIcons();
   }
@@ -846,23 +902,23 @@
     e.preventDefault();
     
     const id = document.getElementById('todoEditId').value;
+    const progress = parseInt(document.getElementById('todoEditProgress').value);
     const todo = {
-      id: id ? parseInt(id) : Date.now(),
+      id: id ? parseInt(id) : Date.now() + Math.floor(Math.random() * 1000),
       name: document.getElementById('todoEditName').value,
       type: document.getElementById('todoEditType').value,
       deadline: document.getElementById('todoEditDeadline').value,
       quadrant: document.getElementById('todoEditQuadrant').value,
       priority: document.getElementById('todoEditPriority').value,
       partners: document.getElementById('todoEditPartners').value,
-      progress: parseInt(document.getElementById('todoEditProgress').value),
+      progress: progress,
       description: document.getElementById('todoEditDescription').value,
-      completed: false
+      completed: progress >= 100
     };
 
     if (id) {
       const index = todos.findIndex(t => t.id === parseInt(id));
       if (index !== -1) {
-        todo.completed = todos[index].completed;
         todos[index] = todo;
         
         // 使用 dataService 更新
@@ -870,7 +926,7 @@
           await window.dataService.saveTodo(todo);
         }
         
-        syncTodoToSchedules(todo);
+        await syncTodoToSchedules(todo);
       }
     } else {
       todos.push(todo);
@@ -887,16 +943,25 @@
     openModal('todoListModal');
   }
 
-  function toggleTodo(id) {
+  async function toggleTodo(id) {
     const todo = todos.find(t => t.id === id);
     if (todo) {
       todo.completed = !todo.completed;
       todo.progress = todo.completed ? 100 : 0;
-      saveTodos();
-      updateWarningBadge();
-      if (!document.getElementById('warningModal').classList.contains('hidden')) {
-        renderWarningQuadrants();
+      
+      // 同步更新关联的日程状态
+      const relatedSchedules = schedules.filter(s => s.parentTodoId === id);
+      relatedSchedules.forEach(schedule => {
+        schedule.progress = todo.progress;
+        schedule.status = todo.completed ? 'completed' : 'pending';
+      });
+      
+      await saveTodos();
+      if (relatedSchedules.length > 0) {
+        await saveSchedules();
       }
+      updateWarningBadge();
+      renderWarningQuadrants();
     }
   }
 
@@ -905,21 +970,30 @@
   }
 
   async function deleteTodo(id) {
-    if (confirm('确定要删除这个待办吗？关联的日程不会被删除。')) {
+    if (confirm('确定要删除这个待办吗？关联的日程将同步删除。')) {
+      // 先删除关联的日程
+      const relatedScheduleIds = schedules.filter(s => s.parentTodoId === id).map(s => s.id);
+      schedules = schedules.filter(s => s.parentTodoId !== id);
+      
+      // 使用 dataService 删除关联日程
+      if (window.dataService) {
+        for (const scheduleId of relatedScheduleIds) {
+          await window.dataService.deleteSchedule(scheduleId);
+        }
+      }
+      
       todos = todos.filter(t => t.id !== id);
       
-      // 使用 dataService 删除
+      // 使用 dataService 删除待办
       if (window.dataService) {
         await window.dataService.deleteTodo(id);
       }
       
-      schedules.forEach(s => {
-        if (s.parentTodoId === id) {
-          s.parentTodoId = null;
-        }
-      });
-      await saveTodos();
       await saveSchedules();
+      await saveTodos();
+      updateStats();
+      updateWarningBadge();
+      renderTimeline();
       closeModal('todoEditModal');
       openModal('todoListModal');
     }
@@ -980,8 +1054,8 @@
 
   function renderGanttChart() {
     const container = document.getElementById('ganttContainer');
-    const dateStr = currentGanttDate.toISOString().split('T')[0];
-    const today = new Date().toISOString().split('T')[0];
+    const dateStr = getLocalDateString(currentGanttDate);
+    const today = getLocalDateString();
     const isToday = dateStr === today;
     const daySchedules = schedules.filter(s => s.date === dateStr);
     
@@ -994,9 +1068,13 @@
     for (let hour = 0; hour < 24; hour++) {
       const hourStr = hour.toString().padStart(2, '0') + ':00';
       const hourSchedules = daySchedules.filter(s => {
-        const startHour = parseInt(s.start.split(':')[0]);
-        const endHour = parseInt(s.end.split(':')[0]);
-        return hour >= startHour && hour < endHour;
+        const startParts = s.start.split(':').map(Number);
+        const endParts = s.end.split(':').map(Number);
+        const startMinutes = startParts[0] * 60 + startParts[1];
+        const endMinutes = endParts[0] * 60 + endParts[1];
+        const blockStart = hour * 60;
+        const blockEnd = (hour + 1) * 60;
+        return startMinutes < blockEnd && endMinutes > blockStart;
       });
 
       html += `<div class="gantt-hour-row">`;
@@ -1013,10 +1091,10 @@
           html += `
             <div class="gantt-schedule-block" style="background: ${gradient};" onclick="openScheduleEditModal(${s.id})">
               <div class="gantt-schedule-top">
-                <div class="gantt-schedule-title">${s.name}</div>
+                <div class="gantt-schedule-title">${escapeHtml(s.name)}</div>
                 <span class="gantt-status-badge ${statusInfo.color}">${statusInfo.text}</span>
               </div>
-              ${parentTodo ? `<div class="gantt-parent-todo"><i data-lucide="link" class="w-3 h-3"></i>${parentTodo.name}</div>` : ''}
+              ${parentTodo ? `<div class="gantt-parent-todo"><i data-lucide="link" class="w-3 h-3"></i>${escapeHtml(parentTodo.name)}</div>` : ''}
               <div class="gantt-schedule-meta">
                 <span class="gantt-schedule-time">${s.start} - ${s.end}</span>
               </div>
@@ -1045,16 +1123,22 @@
     renderGanttChart();
   }
 
-  function populateTodoSelect(selectedId = null) {
+  function populateTodoSelect(selectedId = null, disabled = false) {
     const select = document.getElementById('scheduleEditParentTodo');
     if (!select) return;
     
     let html = '<option value="">新建为独立待办</option>';
     todos.filter(t => !t.completed).forEach(todo => {
       const selected = selectedId && parseInt(selectedId) === todo.id ? 'selected' : '';
-      html += `<option value="${todo.id}" ${selected}>${getTodoTypeLabel(todo.type)} | ${todo.name}</option>`;
+      html += `<option value="${todo.id}" ${selected}>${getTodoTypeLabel(todo.type)} | ${escapeHtml(todo.name)}</option>`;
     });
     select.innerHTML = html;
+    select.disabled = disabled;
+    if (disabled) {
+      select.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+      select.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
   }
 
   function openScheduleEditModal(id = null, defaultStart = null) {
@@ -1063,7 +1147,7 @@
     document.getElementById('scheduleEditTitle').textContent = id ? '编辑日程' : '添加日程';
     document.getElementById('scheduleDeleteBtn').classList.toggle('hidden', !id);
 
-    populateTodoSelect(id ? schedules.find(s => s.id === id)?.parentTodoId : null);
+    populateTodoSelect(id ? schedules.find(s => s.id === id)?.parentTodoId : null, !!id);
 
     if (id) {
       const schedule = schedules.find(s => s.id === id);
@@ -1083,9 +1167,23 @@
     } else {
       form.reset();
       document.getElementById('scheduleEditId').value = '';
-      document.getElementById('scheduleEditDate').value = currentGanttDate.toISOString().split('T')[0];
+      document.getElementById('scheduleEditDate').value = getLocalDateString(currentGanttDate);
       document.getElementById('scheduleEditStart').value = defaultStart || '10:00';
-      document.getElementById('scheduleEditEnd').value = defaultStart ? (parseInt(defaultStart.split(':')[0]) + 1).toString().padStart(2, '0') + ':00' : '11:00';
+      if (defaultStart) {
+        const [h, m] = defaultStart.split(':');
+        if (parseInt(h) >= 23) {
+          document.getElementById('scheduleEditEnd').value = '23:59';
+        } else {
+          document.getElementById('scheduleEditEnd').value = String(parseInt(h) + 1).padStart(2, '0') + ':' + m;
+        }
+      } else {
+        document.getElementById('scheduleEditEnd').value = '11:00';
+      }
+      // 确保时间范围有效（JS 设置值不会触发 change 事件）
+      validateTimeRange(
+        document.getElementById('scheduleEditStart'),
+        document.getElementById('scheduleEditEnd')
+      );
       document.getElementById('scheduleEditQuadrant').value = 'normal-normal';
       document.getElementById('scheduleEditProgress').value = 0;
       document.getElementById('scheduleEditProgressText').textContent = '0%';
@@ -1110,9 +1208,11 @@
 
     startEl.addEventListener('change', function() {
       const [h, m] = this.value.split(':').map(Number);
-      let nextH = h + 1;
-      if (nextH >= 24) nextH = 23;
-      endEl.value = String(nextH).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      if (h >= 23) {
+        endEl.value = '23:59';
+      } else {
+        endEl.value = String(h + 1).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      }
       validateTimeRange(startEl, endEl);
     });
 
@@ -1124,9 +1224,11 @@
   function validateTimeRange(startEl, endEl) {
     if (startEl.value >= endEl.value) {
       const [h, m] = startEl.value.split(':').map(Number);
-      let nextH = h + 1;
-      if (nextH >= 24) nextH = 23;
-      endEl.value = String(nextH).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      if (h >= 23) {
+        endEl.value = '23:59';
+      } else {
+        endEl.value = String(h + 1).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      }
     }
   }
 
@@ -1147,7 +1249,7 @@
     const status = getAutoStatus(progress);
 
     const schedule = {
-      id: id ? parseInt(id) : Date.now(),
+      id: id ? parseInt(id) : Date.now() + Math.floor(Math.random() * 1000),
       date: document.getElementById('scheduleEditDate').value,
       start: document.getElementById('scheduleEditStart').value,
       end: document.getElementById('scheduleEditEnd').value,
@@ -1164,12 +1266,29 @@
     if (id) {
       const index = schedules.findIndex(s => s.id === parseInt(id));
       if (index !== -1) {
-        schedule.parentTodoId = schedules[index].parentTodoId;
+        const oldSchedule = schedules[index];
+        schedule.parentTodoId = oldSchedule.parentTodoId;
+        schedule.created_at = oldSchedule.created_at;
         schedules[index] = schedule;
         
-        // 使用 dataService 更新
         if (window.dataService) {
           await window.dataService.saveSchedule(schedule);
+        }
+        
+        if (schedule.parentTodoId) {
+          updateTodoProgressFromSchedules(schedule.parentTodoId);
+          const todo = todos.find(t => t.id === schedule.parentTodoId);
+          if (todo) {
+            if (schedule.quadrant) {
+              todo.quadrant = schedule.quadrant;
+            }
+            if (schedule.participants !== undefined) {
+              todo.partners = schedule.participants;
+            }
+            if (schedule.note !== undefined) {
+              todo.description = schedule.note;
+            }
+          }
         }
       }
     } else {
@@ -1208,32 +1327,54 @@
     updateTodoProgressFromSchedules(schedule.parentTodoId);
     await saveSchedules();
     await saveTodos();
+    updateStats();
     updateWarningBadge();
+    renderTodoList();
+    renderGanttChart();
+    renderTimeline();
     
-    if (!document.getElementById('warningModal').classList.contains('hidden')) {
-      renderWarningQuadrants();
-    }
+    renderWarningQuadrants();
     
     closeModal('scheduleEditModal');
     openModal('ganttModal');
   }
 
   async function deleteSchedule(id) {
-    if (confirm('确定要删除这个日程吗？')) {
+    if (confirm('确定要删除这个日程吗？关联的待办将同步删除。')) {
       const schedule = schedules.find(s => s.id === id);
+      const parentTodoId = schedule ? schedule.parentTodoId : null;
+
+      // 先删除当前日程
       schedules = schedules.filter(s => s.id !== id);
-      
-      // 使用 dataService 删除
       if (window.dataService) {
         await window.dataService.deleteSchedule(id);
       }
-      
-      await saveSchedules();
-      if (schedule && schedule.parentTodoId) {
-        updateTodoProgressFromSchedules(schedule.parentTodoId);
-        await saveTodos();
+
+      if (parentTodoId) {
+        // 删除所有关联到该待办的其他日程，避免产生孤儿数据
+        const orphanedSchedules = schedules.filter(s => s.parentTodoId === parentTodoId);
+        schedules = schedules.filter(s => s.parentTodoId !== parentTodoId);
+        if (window.dataService) {
+          for (const orphan of orphanedSchedules) {
+            await window.dataService.deleteSchedule(orphan.id);
+          }
+        }
+        // 同步删除关联的待办
+        todos = todos.filter(t => t.id !== parentTodoId);
+        if (window.dataService) {
+          await window.dataService.deleteTodo(parentTodoId);
+        }
       }
+
+      await saveSchedules();
+      await saveTodos();
+      updateStats();
       updateWarningBadge();
+      renderTodoList();
+      renderGanttChart();
+      renderTimeline();
+      renderWarningQuadrants();
+
       closeModal('scheduleEditModal');
       openModal('ganttModal');
     }
@@ -1245,23 +1386,34 @@
     if (relatedSchedules.length === 0) return;
     
     const avgProgress = Math.round(relatedSchedules.reduce((sum, s) => sum + (s.progress || 0), 0) / relatedSchedules.length);
+    const allCompleted = relatedSchedules.every(s => s.status === 'completed');
     const todo = todos.find(t => t.id === todoId);
+    
     if (todo) {
       todo.progress = avgProgress;
-      if (avgProgress >= 100 && relatedSchedules.every(s => s.status === 'completed')) {
+      
+      if (avgProgress >= 100 && allCompleted) {
         todo.completed = true;
+      } else {
+        todo.completed = false;
+      }
+      
+      if (avgProgress === 0) {
+        todo.progress = 0;
       }
     }
   }
 
-  function syncTodoToSchedules(todo) {
+  async function syncTodoToSchedules(todo) {
     schedules.forEach(schedule => {
       if (schedule.parentTodoId === todo.id) {
         schedule.quadrant = todo.quadrant;
         schedule.participants = todo.partners;
+        schedule.progress = todo.progress;
+        schedule.status = todo.completed ? 'completed' : (todo.progress > 0 ? 'in-progress' : 'pending');
       }
     });
-    saveSchedules();
+    await saveSchedules();
   }
 
   // ========== 进度条动画 ==========
@@ -1477,30 +1629,20 @@
     const slider = document.getElementById('todoEditProgress');
     const text = document.getElementById('todoEditProgressText');
     if (slider && text) {
-      slider.removeEventListener('input', updateSliderText);
-      slider.addEventListener('input', function() {
+      // 使用 oninput 属性避免重复绑定
+      slider.oninput = function() {
         text.textContent = this.value + '%';
-      });
+      };
     }
     
     const scheduleSlider = document.getElementById('scheduleEditProgress');
     const scheduleText = document.getElementById('scheduleEditProgressText');
     if (scheduleSlider && scheduleText) {
-      scheduleSlider.removeEventListener('input', updateScheduleSliderText);
-      scheduleSlider.addEventListener('input', function() {
+      // 使用 oninput 属性避免重复绑定
+      scheduleSlider.oninput = function() {
         scheduleText.textContent = this.value + '%';
-      });
+      };
     }
-  }
-  
-  function updateSliderText(e) {
-    const text = document.getElementById('todoEditProgressText');
-    if (text) text.textContent = e.target.value + '%';
-  }
-  
-  function updateScheduleSliderText(e) {
-    const text = document.getElementById('scheduleEditProgressText');
-    if (text) text.textContent = e.target.value + '%';
   }
 
   // ========== 分享链接功能 ==========
@@ -1518,38 +1660,17 @@
       ? window.SHARE_BASE_URL
       : window.location.origin + window.location.pathname;
 
-    // 方案1：数据存云端 + 短链服务缩短（最短）
-    try {
-      const id = await uploadShareData(shareData);
-      const urlWithId = baseUrl + '?s=' + id;
-      const shortUrl = await shortenUrl(urlWithId);
-      copyToClipboard(shortUrl, '短链接已复制到剪贴板！');
-      return;
-    } catch (e) {
-      console.warn('[分享] 方案1失败:', e.message);
-    }
-
-    // 方案2：只用短链服务缩短长链接
-    try {
-      const longUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
-      const shortUrl = await shortenUrl(longUrl);
-      copyToClipboard(shortUrl, '短链接已复制到剪贴板！');
-      return;
-    } catch (e) {
-      console.warn('[分享] 方案2失败:', e.message);
-    }
-
-    // 方案3：只用云端存储（无短链）
+    // 方案1：数据存云端，生成短链接
     try {
       const id = await uploadShareData(shareData);
       const shareUrl = baseUrl + '?s=' + id;
       copyToClipboard(shareUrl, '分享链接已复制到剪贴板！');
       return;
     } catch (e) {
-      console.warn('[分享] 方案3失败:', e.message);
+      console.warn('[分享] 云端存储失败:', e.message);
     }
 
-    // 方案4：降级，压缩数据放 URL
+    // 方案2：降级，压缩数据放 URL
     try {
       const compressedUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify({
         t: shareData.todos.map(t => ({ n: t.name, d: t.deadline, q: t.quadrant, p: t.progress, c: t.completed ? 1 : 0 })),
@@ -1686,14 +1807,42 @@
   }
 
   function copyToClipboard(text, successMessage) {
+    // 现代方法：使用 Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          showToast(successMessage, 'success');
+        })
+        .catch(() => {
+          fallbackCopyToClipboard(text, successMessage);
+        });
+      return;
+    }
+
+    // 降级方法
+    fallbackCopyToClipboard(text, successMessage);
+  }
+
+  function fallbackCopyToClipboard(text, successMessage) {
     const textarea = document.createElement('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';
-    textarea.style.top = '-1000px';
-    textarea.style.left = '-1000px';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
     document.body.appendChild(textarea);
-    textarea.select();
-    textarea.setSelectionRange(0, text.length);
+
+    if (navigator.userAgent.match(/ipad|iphone/i)) {
+      const range = document.createRange();
+      range.selectNodeContents(textarea);
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+        textarea.setSelectionRange(0, 999999);
+      }
+    } else {
+      textarea.select();
+    }
 
     try {
       const successful = document.execCommand('copy');
@@ -1781,7 +1930,7 @@
     // 兼容压缩格式
     if (decodedData.t) {
       todos = decodedData.t.map(t => ({
-        id: Date.now() + Math.random(),
+        id: Date.now() + Math.floor(Math.random() * 1000),
         name: t.n, deadline: t.d, quadrant: t.q,
         progress: t.p, completed: !!t.c, priority: 'medium',
         type: 'day', partners: '', description: ''
@@ -1790,7 +1939,7 @@
     }
     if (decodedData.s) {
       schedules = decodedData.s.map(s => ({
-        id: Date.now() + Math.random(),
+        id: Date.now() + Math.floor(Math.random() * 1000),
         name: s.n, date: s.dt, start: s.st, end: s.et,
         quadrant: s.q, progress: s.p, status: s.st2,
         location: '', participants: '', note: ''
@@ -1818,6 +1967,15 @@
     renderNewsList(newsData);
     initModalSystem();
     initProgressSlider();
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', function() {
+        const pageName = this.getAttribute('data-page');
+        if (pageName) {
+          switchPage(pageName);
+        }
+      });
+    });
 
     setTimeout(() => {
       animateProgressBars();
@@ -1855,6 +2013,7 @@
   window.showToast = showToast;
   window.deleteTodoFromEdit = deleteTodoFromEdit;
   window.deleteScheduleFromEdit = deleteScheduleFromEdit;
+  window.deleteSchedule = deleteSchedule;
   window.populateTodoSelect = populateTodoSelect;
   window.updateWarningBadge = updateWarningBadge;
 })();
