@@ -1223,16 +1223,28 @@
       const schedule = schedules.find(s => s.id === id);
       schedules = schedules.filter(s => s.id !== id);
       
-      // 使用 dataService 删除
       if (window.dataService) {
         await window.dataService.deleteSchedule(id);
       }
       
       await saveSchedules();
+      
       if (schedule && schedule.parentTodoId) {
-        updateTodoProgressFromSchedules(schedule.parentTodoId);
-        await saveTodos();
+        const hasOtherSchedules = schedules.some(s => s.parentTodoId === schedule.parentTodoId);
+        if (!hasOtherSchedules) {
+          todos = todos.filter(t => t.id !== schedule.parentTodoId);
+          if (window.dataService) {
+            await window.dataService.deleteTodo(schedule.parentTodoId);
+          }
+          await saveTodos();
+          renderTodoList();
+        } else {
+          updateTodoProgressFromSchedules(schedule.parentTodoId);
+          await saveTodos();
+        }
       }
+      
+      updateStats();
       updateWarningBadge();
       closeModal('scheduleEditModal');
       openModal('ganttModal');
@@ -1818,6 +1830,15 @@
     renderNewsList(newsData);
     initModalSystem();
     initProgressSlider();
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', function() {
+        const pageName = this.getAttribute('data-page');
+        if (pageName) {
+          switchPage(pageName);
+        }
+      });
+    });
 
     setTimeout(() => {
       animateProgressBars();
