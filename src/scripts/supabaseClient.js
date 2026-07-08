@@ -1,308 +1,205 @@
 /**
- * supabaseClient.js - Supabase 客户端封装
- * 提供认证、实时订阅等功能
+ * Supabase 客户端初始化
+ * 用于云端数据同步和用户认证
  */
 
 (function() {
   'use strict';
 
-  // Supabase 配置
-  // 注意：请替换为您的 Supabase 项目 URL 和匿名密钥
+  // Supabase 配置 - 从环境变量或全局配置获取
   const SUPABASE_URL = window.SUPABASE_URL || '';
   const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
 
-  let supabase = null;
+  // Supabase 客户端实例
+  let supabaseClient = null;
+  let isConnected = false;
+  let currentUser = null;
 
-  // 初始化 Supabase 客户端
+  /**
+   * 初始化 Supabase 客户端
+   * @returns {boolean} 是否成功初始化
+   */
   function initSupabase() {
+    // 检查是否已配置 Supabase
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      console.log('[Supabase] 未配置 SUPABASE_URL 或 SUPABASE_ANON_KEY，跳过初始化');
-      return null;
-    }
-
-    if (typeof window.supabase === 'undefined') {
-      console.warn('[Supabase] Supabase JS 库未加载');
-      return null;
+      console.log('[Supabase] 未配置 Supabase URL 或 Key，将使用 localStorage 模式');
+      isConnected = false;
+      return false;
     }
 
     try {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      // 创建 Supabase 客户端
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: true
-        },
-        realtime: {
-          params: {
-            eventsPerSecond: 10
-          }
+        }
+      });
+      
+      isConnected = true;
+      console.log('[Supabase] 客户端初始化成功');
+      
+      // 监听认证状态变化
+      supabaseClient.auth.onAuthStateChange((event, session) => {
+        currentUser = session?.user || null;
+        console.log('[Supabase] 认证状态变化:', event, currentUser?.email || '未登录');
+        
+        // 触发全局事件，通知数据服务层更新
+        if (window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('supabase-auth-change', {
+            detail: { user: currentUser, event: event }
+          }));
         }
       });
 
-      console.log('[Supabase] 客户端初始化成功');
-      return supabase;
+      return true;
     } catch (error) {
       console.error('[Supabase] 初始化失败:', error);
-      return null;
+      isConnected = false;
+      return false;
     }
   }
 
-  // 认证相关功能
-  const authAPI = {
-    // 邮箱注册
-    async signUp(email, password) {
-      if (!supabase) return { error: new Error('Supabase 未初始化') };
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password
-      });
-
-      if (error) {
-        console.error('[Supabase] 注册失败:', error);
-        return { error };
-      }
-
-      // 注册成功后，分发认证状态变化事件
-      if (data.user) {
-        window.dispatchEvent(new CustomEvent('supabase-auth-change', {
-          detail: { user: data.user, session: data.session }
-        }));
-      }
-
-      return { data, error: null };
-    },
-
-    // 邮箱登录
-    async signIn(email, password) {
-      if (!supabase) return { error: new Error('Supabase 未初始化') };
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        console.error('[Supabase] 登录失败:', error);
-        return { error };
-      }
-
-      if (data.user) {
-        window.dispatchEvent(new CustomEvent('supabase-auth-change', {
-          detail: { user: data.user, session: data.session }
-        }));
-      }
-
-      return { data, error: null };
-    },
-
-    // 退出登录
-    async signOut() {
-      if (!supabase) return { error: new Error('Supabase 未初始化') };
-      
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        console.error('[Supabase] 退出失败:', error);
-        return { error };
-      }
-
-      window.dispatchEvent(new CustomEvent('supabase-auth-change', {
-        detail: { user: null, session: null }
-      }));
-
-      return { error: null };
-    },
-
-    // 获取当前用户
-    async getCurrentUser() {
-      if (!supabase) return { user: null, error: new Error('Supabase 未初始化') };
-      
-      const { data, error } = await supabase.auth.getUser();
-      
-      if (error) {
-        console.error('[Supabase] 获取用户失败:', error);
-        return { user: null, error };
-      }
-
-      return { user: data.user, error: null };
-    },
-
-    // 获取当前会话
-    async getSession() {
-      if (!supabase) return { session: null, error: new Error('Supabase 未初始化') };
-      
-      const { data, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('[Supabase] 获取会话失败:', error);
-        return { session: null, error };
-      }
-
-      return { session: data.session, error: null };
-    },
-
-    // 监听认证状态变化
-    onAuthStateChange(callback) {
-      if (!supabase) {
-        console.warn('[Supabase] 未初始化，无法监听认证状态');
-        return null;
-      }
-
-      const { data } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log('[Supabase] 认证状态变化:', event);
-        
-        const user = session?.user || null;
-        
-        // 分发自定义事件
-        window.dispatchEvent(new CustomEvent('supabase-auth-change', {
-          detail: { user, session, event }
-        }));
-
-        if (callback) {
-          callback(event, session);
-        }
-      });
-
-      return data.subscription;
-    }
-  };
-
-  // 数据库操作封装
-  const dbAPI = {
-    // 通用查询
-    async select(table, options = {}) {
-      if (!supabase) return { data: null, error: new Error('Supabase 未初始化') };
-      
-      let query = supabase.from(table).select(options.columns || '*');
-      
-      if (options.eq) {
-        query = query.eq(options.eq.column, options.eq.value);
-      }
-      
-      if (options.order) {
-        query = query.order(options.order.column, { ascending: options.order.ascending });
-      }
-      
-      if (options.limit) {
-        query = query.limit(options.limit);
-      }
-
-      const { data, error } = await query;
-      return { data, error };
-    },
-
-    // 插入数据
-    async insert(table, data) {
-      if (!supabase) return { data: null, error: new Error('Supabase 未初始化') };
-      
-      const { data: result, error } = await supabase
-        .from(table)
-        .insert(data)
-        .select();
-
-      return { data: result, error };
-    },
-
-    // 更新数据
-    async update(table, data, match) {
-      if (!supabase) return { data: null, error: new Error('Supabase 未初始化') };
-      
-      let query = supabase.from(table).update(data);
-      
-      if (match) {
-        query = query.eq(match.column, match.value);
-      }
-
-      const { data: result, error } = await query.select();
-      return { data: result, error };
-    },
-
-    // 删除数据
-    async delete(table, match) {
-      if (!supabase) return { data: null, error: new Error('Supabase 未初始化') };
-      
-      let query = supabase.from(table).delete();
-      
-      if (match) {
-        query = query.eq(match.column, match.value);
-      }
-
-      const { data: result, error } = await query.select();
-      return { data: result, error };
-    },
-
-    // Upsert（插入或更新）
-    async upsert(table, data, onConflict) {
-      if (!supabase) return { data: null, error: new Error('Supabase 未初始化') };
-      
-      const { data: result, error } = await supabase
-        .from(table)
-        .upsert(data, { onConflict })
-        .select();
-
-      return { data: result, error };
-    }
-  };
-
-  // 实时订阅封装
-  const realtimeAPI = {
-    // 订阅表变化
-    subscribe(table, callback, filter) {
-      if (!supabase) {
-        console.warn('[Supabase] 未初始化，无法订阅实时数据');
-        return null;
-      }
-
-      let channel = supabase.channel(table + '_changes');
-      
-      channel
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: table,
-          filter: filter
-        }, (payload) => {
-          console.log('[Supabase] 实时更新:', payload);
-          if (callback) {
-            callback(payload);
-          }
-        })
-        .subscribe();
-
-      return channel;
-    },
-
-    // 取消订阅
-    unsubscribe(channel) {
-      if (channel && supabase) {
-        supabase.removeChannel(channel);
-      }
-    }
-  };
-
-  // 初始化
-  const client = initSupabase();
-
-  // 如果初始化成功，设置到 dataService
-  if (client && window.dataService) {
-    window.dataService.setSupabaseClient(client);
-    
-    // 检查当前会话
-    authAPI.getSession().then(({ session }) => {
-      if (session?.user) {
-        window.dataService.setCurrentUser(session.user);
-        console.log('[Supabase] 已恢复登录状态:', session.user.email);
-      }
-    });
+  /**
+   * 获取当前登录用户
+   * @returns {Object|null} 用户对象或 null
+   */
+  function getCurrentUser() {
+    return currentUser;
   }
 
-  // 暴露到全局
+  /**
+   * 获取 Supabase 客户端实例
+   * @returns {Object|null} Supabase 客户端或 null
+   */
+  function getClient() {
+    return supabaseClient;
+  }
+
+  /**
+   * 检查是否已连接到 Supabase
+   * @returns {boolean} 是否已连接
+   */
+  function isConnectedToSupabase() {
+    return isConnected && supabaseClient !== null;
+  }
+
+  /**
+   * 检查用户是否已登录
+   * @returns {Promise<boolean>} 是否已登录
+   */
+  async function checkUserLogin() {
+    if (!isConnectedToSupabase()) {
+      return false;
+    }
+
+    try {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      currentUser = user;
+      return user !== null;
+    } catch (error) {
+      console.error('[Supabase] 获取用户信息失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 邮箱登录
+   * @param {string} email 用户邮箱
+   * @param {string} password 用户密码
+   * @returns {Promise<Object>} 登录结果
+   */
+  async function signInWithEmail(email, password) {
+    if (!isConnectedToSupabase()) {
+      return { success: false, error: 'Supabase 未连接' };
+    }
+
+    try {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      currentUser = data.user;
+      return { success: true, user: data.user };
+    } catch (error) {
+      console.error('[Supabase] 登录失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 邮箱注册
+   * @param {string} email 用户邮箱
+   * @param {string} password 用户密码
+   * @returns {Promise<Object>} 注册结果
+   */
+  async function signUpWithEmail(email, password) {
+    if (!isConnectedToSupabase()) {
+      return { success: false, error: 'Supabase 未连接' };
+    }
+
+    try {
+      const { data, error } = await supabaseClient.auth.signUp({
+        email: email,
+        password: password
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      currentUser = data.user;
+      return { success: true, user: data.user };
+    } catch (error) {
+      console.error('[Supabase] 注册失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 登出
+   * @returns {Promise<Object>} 登出结果
+   */
+  async function signOut() {
+    if (!isConnectedToSupabase()) {
+      return { success: true };
+    }
+
+    try {
+      const { error } = await supabaseClient.auth.signOut();
+      
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      currentUser = null;
+      return { success: true };
+    } catch (error) {
+      console.error('[Supabase] 登出失败:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 初始化时立即执行
+   */
+  initSupabase();
+
+  // 暴露全局接口
   window.supabaseClient = {
-    client: supabase,
-    auth: authAPI,
-    db: dbAPI,
-    realtime: realtimeAPI,
-    isReady: () => !!supabase
+    getClient: getClient,
+    getCurrentUser: getCurrentUser,
+    isConnected: isConnectedToSupabase,
+    checkUserLogin: checkUserLogin,
+    signIn: signInWithEmail,
+    signUp: signUpWithEmail,
+    signOut: signOut
   };
+
 })();

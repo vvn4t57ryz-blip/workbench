@@ -1,133 +1,130 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>效率工作台</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#E8915A">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>效率工作台 - 首页总览</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- Supabase JavaScript SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 分享配置：设置线上部署地址 -->
+  <script>
+    window.SHARE_BASE_URL = 'https://vvn4t57ryz-blip.github.io/workbench';
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/styles/main.css" />
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            primary: {
+            brand: {
               50: '#FFF8F2',
               100: '#FFEDE0',
               200: '#FAD4B8',
-              300: '#F5B88A',
-              400: '#E8915A',
-              500: '#D97A3E',
-              600: '#C26A32',
+              300: '#F4B88A',
+              400: '#EEA36E',
+              500: '#E8915A',
+              600: '#D97A3D',
+              700: '#C97038',
+              800: '#A85A2C',
+              900: '#874823',
             },
-            surface: {
+            ink: {
               50: '#FAF8F6',
               100: '#F0EBE6',
               200: '#E0D8D0',
+              300: '#C8BFB5',
+              400: '#A8988A',
+              500: '#8B7A6B',
+              600: '#6B5B4D',
+              700: '#52463C',
+              800: '#3D2E1F',
+              900: '#2D2319',
             },
-            text: {
-              primary: '#3D2E1F',
-              secondary: '#6B5B4D',
-              muted: '#A8988A',
-            }
+            success: {
+              50: '#EFFBF4',
+              100: '#D6F5E2',
+              500: '#5BB88C',
+              600: '#45A678',
+            },
+            info: {
+              50: '#EFF6FC',
+              100: '#D9EAF7',
+              500: '#5A9FD9',
+              600: '#458BC7',
+            },
+            warning: {
+              50: '#FEF8E9',
+              100: '#FCEFC6',
+              500: '#E8C15A',
+              600: '#D9AB3D',
+            },
+            danger: {
+              50: '#FEF2F2',
+              100: '#FEE2E2',
+              500: '#EF4444',
+              600: '#DC2626',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'PingFang SC', 'Microsoft YaHei', 'system-ui', 'sans-serif'],
           },
           boxShadow: {
-            'card': '0 2px 8px rgba(45, 35, 25, 0.04), 0 8px 24px rgba(45, 35, 25, 0.06)',
+            card: '0 1px 2px rgba(45, 35, 25, 0.04), 0 4px 12px rgba(45, 35, 25, 0.04)',
+            cardHover: '0 2px 4px rgba(45, 35, 25, 0.06), 0 8px 20px rgba(45, 35, 25, 0.08)',
           },
           borderRadius: {
-            'xl2': '16px',
-            '2xl2': '20px',
+            xl2: '14px',
           }
         }
       }
     }
   </script>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-      background: #F5F2EF;
-      -webkit-tap-highlight-color: transparent;
-      overscroll-behavior-y: none;
-    }
-    .page {
-      display: none;
-    }
-    .page.active {
-      display: block;
-    }
-    .hide-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .hide-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-    @keyframes slideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    .animate-slide-up {
-      animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .animate-fade-in {
-      animation: fadeIn 0.25s ease;
-    }
-  </style>
-  <link rel="stylesheet" href="src/styles/main.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script>
-    window.SUPABASE_URL = '';
-    window.SUPABASE_ANON_KEY = '';
-  </script>
-  <script>
-    window.SHARE_BASE_URL = 'https://vvn4t57ryz-blip.github.io/workbench';
-  </script>
 </head>
-<body class="text-text-primary">
+<body class="bg-brand-50 text-ink-800 font-sans antialiased min-h-screen">
 
-  <!-- 侧边栏导航（桌面端） -->
-  <aside class="hidden lg:flex sidebar">
+  <!-- 侧边栏（桌面端） -->
+  <aside id="sidebar" class="sidebar hidden lg:flex">
     <div class="sidebar-inner">
-      <div class="flex items-center gap-3 mb-8 px-2">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 to-primary-500 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary-200">
-          效
+      <div class="flex items-center gap-3 px-2 py-3 mb-8">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white shadow-md">
+          <i data-lucide="zap" class="w-5 h-5"></i>
         </div>
         <div>
-          <h1 class="font-bold text-text-primary text-base">效率工作台</h1>
-          <p class="text-xs text-text-muted">让工作更高效</p>
+          <div class="text-base font-semibold text-ink-900">效率工作台</div>
+          <div class="text-xs text-ink-400">Efficiency Hub</div>
         </div>
       </div>
 
-      <nav class="nav-list flex-1">
+      <nav class="nav-list flex flex-col gap-1">
         <button class="nav-item active" data-page="home" onclick="switchPage('home')">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-          首页
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+          <span>首页</span>
         </button>
         <button class="nav-item" data-page="dashboard" onclick="switchPage('dashboard')">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
-          信息看板
+          <i data-lucide="newspaper" class="w-5 h-5"></i>
+          <span>信息看板</span>
         </button>
         <button class="nav-item" data-page="profile" onclick="switchPage('profile')">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
-          我的
+          <i data-lucide="user" class="w-5 h-5"></i>
+          <span>我的</span>
         </button>
       </nav>
 
-      <div class="mt-auto pt-6 border-t border-surface-100">
-        <div class="flex items-center gap-3 px-2">
-          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="头像" class="w-9 h-9 rounded-full bg-surface-100">
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-text-primary truncate">产品经理</p>
-            <p class="text-xs text-text-muted">在线</p>
+      <div class="mt-auto pt-6 border-t border-ink-100">
+        <div class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-ink-50 cursor-pointer transition-colors">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-300 to-brand-500 flex items-center justify-center text-white text-sm font-medium">
+            生
           </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium text-ink-800 truncate">生产队小绵羊</div>
+            <div class="text-xs text-ink-400 truncate">高级会员</div>
+          </div>
+          <i data-lucide="settings" class="w-4 h-4 text-ink-400"></i>
         </div>
       </div>
     </div>
@@ -140,92 +137,83 @@
     <section class="page page-home active" data-page="home">
       <!-- 顶部问候区 -->
       <header class="px-5 pt-6 pb-4 lg:px-8 lg:pt-8">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-xl font-bold text-text-primary" id="greeting">下午好</h2>
-            <p class="text-sm text-text-muted mt-0.5">今天也要高效工作</p>
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 text-xs font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-brand-500 mr-1.5 animate-pulse"></span>
+                今日
+              </span>
+              <span class="text-xs text-ink-400" id="headerDate">2026年7月7日 · 星期二</span>
+            </div>
+            <h1 class="text-[22px] lg:text-2xl font-semibold text-ink-900 tracking-tight">
+              <span id="greetingText">早上好</span>，小绵羊 👋
+            </h1>
+            <p class="text-sm text-ink-500 mt-1">今天有 <span id="todoCount">8</span> 件待办和 <span id="scheduleCount">2</span> 场日程，保持专注，高效完成。</p>
           </div>
-          <div class="flex items-center gap-3">
-            <button class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-card relative" onclick="openModal('notificationModal')">
-              <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
-              <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center" id="notificationCount">0</span>
-            </button>
-            <button class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-card relative" onclick="openModal('warningModal')">
-              <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-              <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center warning-badge" id="warningBadge" style="display: none">0</span>
-            </button>
-          </div>
+          <button class="relative w-11 h-11 rounded-full bg-white shadow-card flex items-center justify-center hover:shadow-cardHover transition-shadow lg:hidden" onclick="openModal('notificationModal')">
+            <i data-lucide="bell" class="w-5 h-5 text-ink-500"></i>
+            <span id="bellBadge" class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-danger-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white">3</span>
+          </button>
+          <button class="hidden lg:flex relative w-11 h-11 rounded-full bg-white shadow-card items-center justify-center hover:shadow-cardHover transition-shadow" onclick="openModal('notificationModal')">
+            <i data-lucide="bell" class="w-5 h-5 text-ink-500"></i>
+            <span id="bellBadge" class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-danger-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white">3</span>
+          </button>
         </div>
       </header>
 
       <!-- 数据概览 -->
       <section class="px-5 lg:px-8 mb-6">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-text-primary">数据概览</h3>
-          <span class="text-xs text-text-muted" id="currentDate"></span>
+          <h2 class="text-base font-semibold text-ink-900">数据概览</h2>
+          <button class="text-xs text-brand-600 font-medium flex items-center gap-1 hover:text-brand-700 transition-colors" onclick="openModal('statsModal')">
+            查看全部
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </button>
         </div>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div class="stat-card bg-white rounded-xl2 p-4 shadow-card" onclick="openModal('todoListModal')">
-            <div class="flex items-center gap-2 mb-2">
-              <div class="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center">
-                <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div class="stat-card bg-white rounded-xl2 p-4 shadow-card">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center text-brand-500">
+                <i data-lucide="check-circle-2" class="w-5 h-5"></i>
               </div>
-              <span class="text-xs text-text-muted">待办任务</span>
+              <span class="text-xs font-medium text-success-600 bg-success-50 px-2 py-0.5 rounded-full">待办</span>
             </div>
-            <div class="flex items-end gap-1.5">
-              <span class="text-2xl font-bold text-text-primary" id="todoCount">0</span>
-              <span class="text-xs text-text-muted mb-1">项待办</span>
-            </div>
-            <div class="mt-2">
-              <div class="w-full h-1.5 bg-surface-100 rounded-full overflow-hidden">
-                <div class="h-full bg-gradient-to-r from-primary-400 to-primary-500 rounded-full transition-all duration-700" style="width: 0%" id="todoProgressBar"></div>
-              </div>
-              <p class="text-[10px] text-text-muted mt-1" id="todoProgressText">完成进度 0%</p>
-            </div>
+            <div class="text-2xl font-semibold text-ink-900 tracking-tight" id="statTodos">8</div>
+            <div class="text-xs text-ink-400 mt-0.5">待办</div>
           </div>
-
-          <div class="stat-card bg-white rounded-xl2 p-4 shadow-card" onclick="openModal('ganttModal')">
-            <div class="flex items-center gap-2 mb-2">
-              <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+          <div class="stat-card bg-white rounded-xl2 p-4 shadow-card">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-9 h-9 rounded-lg bg-success-50 flex items-center justify-center text-success-500">
+                <i data-lucide="check" class="w-5 h-5"></i>
               </div>
-              <span class="text-xs text-text-muted">日程</span>
+              <span class="text-xs font-medium text-success-600 bg-success-50 px-2 py-0.5 rounded-full">已完成</span>
             </div>
-            <div class="flex items-end gap-1.5">
-              <span class="text-2xl font-bold text-text-primary" id="scheduleCount">0</span>
-              <span class="text-xs text-text-muted mb-1">项安排</span>
-            </div>
-            <p class="text-[10px] text-text-muted mt-1" id="scheduleStatusText">今日 0 项安排</p>
-            <div id="scheduleTimesContainer" class="flex -space-x-1 mt-2">
-              </div>
+            <div class="text-2xl font-semibold text-ink-900 tracking-tight" id="statCompleted">3</div>
+            <div class="text-xs text-ink-400 mt-0.5">已完成</div>
           </div>
-
-          <div class="stat-card bg-white rounded-xl2 p-4 shadow-card" onclick="switchPage('dashboard'); showDashboardSection('news')">
-            <div class="flex items-center gap-2 mb-2">
-              <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-11.25c0-.621.504-1.125 1.125-1.125h9.75z"/></svg>
+          <div class="stat-card bg-white rounded-xl2 p-4 shadow-card">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-9 h-9 rounded-lg bg-info-50 flex items-center justify-center text-info-500">
+                <i data-lucide="calendar" class="w-5 h-5"></i>
               </div>
-              <span class="text-xs text-text-muted">资讯</span>
+              <span class="text-xs font-medium text-ink-400 bg-ink-50 px-2 py-0.5 rounded-full">今日</span>
             </div>
-            <div class="flex items-end gap-1.5">
-              <span class="text-2xl font-bold text-text-primary" id="newsCount">0</span>
-              <span class="text-xs text-text-muted mb-1">条更新</span>
-            </div>
-            <p class="text-[10px] text-text-muted mt-1" id="latestNewsTitle">暂无最新资讯</p>
+            <div class="text-2xl font-semibold text-ink-900 tracking-tight" id="statSchedules">2</div>
+            <div class="text-xs text-ink-400 mt-0.5">日程安排</div>
           </div>
-
-          <div class="stat-card bg-white rounded-xl2 p-4 shadow-card" onclick="switchPage('dashboard'); showDashboardSection('tools')">
-            <div class="flex items-center gap-2 mb-2">
-              <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-                <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.032 4.032"/></svg>
+          <div class="stat-card bg-white rounded-xl2 p-4 shadow-card cursor-pointer hover:shadow-cardHover transition-shadow" onclick="openModal('warningModal')" id="warningStatCard">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-9 h-9 rounded-lg bg-danger-50 flex items-center justify-center text-danger-500">
+                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
               </div>
-              <span class="text-xs text-text-muted">工具</span>
+              <span class="warning-badge text-xs font-medium text-danger-600 bg-danger-50 px-2 py-0.5 rounded-full flex items-center gap-1" id="warningBadge">
+                <span class="w-1.5 h-1.5 rounded-full bg-danger-500 animate-pulse"></span>
+                <span id="warningCount">3</span>项
+              </span>
             </div>
-            <div class="flex items-end gap-1.5">
-              <span class="text-2xl font-bold text-text-primary" id="toolCount">3</span>
-              <span class="text-xs text-text-muted mb-1">个工具</span>
-            </div>
-            <p class="text-[10px] text-text-muted mt-1">番茄钟 · 密码 · 二维码</p>
+            <div class="text-2xl font-semibold text-ink-900 tracking-tight" id="statWarning">进度预警</div>
+            <div class="text-xs text-danger-500 mt-0.5" id="warningDesc">3项任务需关注</div>
           </div>
         </div>
       </section>
@@ -233,638 +221,750 @@
       <!-- 功能入口卡片 -->
       <section class="px-5 lg:px-8 mb-6">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-text-primary">功能入口</h3>
+          <h2 class="text-base font-semibold text-ink-900">功能入口</h2>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <!-- 待办任务 -->
+          <!-- 待办成长记 -->
           <div class="feature-card bg-white rounded-xl2 p-5 shadow-card cursor-pointer group" onclick="openModal('todoListModal')">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-400 to-primary-500 flex items-center justify-center shadow-lg shadow-primary-200">
-                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <div>
-                  <h3 class="font-semibold text-text-primary text-base">待办任务</h3>
-                  <p class="text-xs text-text-muted mt-0.5">查看和管理待办事项</p>
-                </div>
+            <div class="flex items-start justify-between">
+              <div class="w-11 h-11 rounded-xl bg-success-50 flex items-center justify-center text-success-500 group-hover:bg-success-100/50 transition-colors">
+                <i data-lucide="list-todo" class="w-5 h-5"></i>
               </div>
-              <svg class="w-5 h-5 text-text-muted group-hover:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+              <i data-lucide="arrow-up-right" class="w-5 h-5 text-ink-300 group-hover:text-success-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all"></i>
             </div>
-            <div class="space-y-2.5" id="todoPreview">
-              <div class="flex items-center gap-3 py-2 border-b border-surface-100">
-                <div class="w-5 h-5 rounded border-2 border-primary-400 flex items-center justify-center flex-shrink-0"><svg class="w-3 h-3 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></div>
-                <span class="text-sm text-text-muted line-through flex-1">完成竞品分析报告</span>
-                <span class="text-[10px] px-2 py-0.5 bg-green-50 text-green-600 rounded-md">已完成</span>
+            <div class="mt-4">
+              <h3 class="text-base font-semibold text-ink-900 group-hover:text-success-600 transition-colors">待办任务</h3>
+              <p class="text-sm text-ink-400 mt-1" id="todoProgressText">3/8 项已完成 · 稳步推进中</p>
+            </div>
+            <div class="mt-4">
+              <div class="flex items-center justify-between text-xs mb-1.5">
+                <span class="text-ink-400">今日进度</span>
+                <span class="font-medium text-success-600" id="todoProgressPercent">37.5%</span>
               </div>
-              <div class="flex items-center gap-3 py-2 border-b border-surface-100">
-                <div class="w-5 h-5 rounded border-2 border-surface-200 flex-shrink-0"></div>
-                <span class="text-sm text-text-primary flex-1">短剧脚本审核</span>
-                <span class="text-[10px] px-2 py-0.5 bg-primary-50 text-primary-500 rounded-md">进行中</span>
-              </div>
-              <div class="flex items-center gap-3 py-2">
-                <div class="w-5 h-5 rounded border-2 border-surface-200 flex-shrink-0"></div>
-                <span class="text-sm text-text-primary flex-1">整理营销素材库</span>
-                <span class="text-[10px] px-2 py-0.5 bg-surface-100 text-text-muted rounded-md">待开始</span>
+              <div class="h-1.5 bg-ink-100 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-success-400 to-success-500 rounded-full progress-bar-fill" id="todoProgressBar" style="width: 37.5%"></div>
               </div>
             </div>
           </div>
 
           <!-- 我的日程 -->
           <div class="feature-card bg-white rounded-xl2 p-5 shadow-card cursor-pointer group" onclick="openModal('ganttModal')" id="scheduleCard">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-200">
-                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
-                </div>
-                <div>
-                  <h3 class="font-semibold text-text-primary text-base">我的日程</h3>
-                  <p class="text-xs text-text-muted mt-0.5">查看今日日程安排</p>
-                </div>
+            <div class="flex items-start justify-between">
+              <div class="w-11 h-11 rounded-xl bg-info-50 flex items-center justify-center text-info-500 group-hover:bg-info-100/50 transition-colors">
+                <i data-lucide="calendar-days" class="w-5 h-5"></i>
               </div>
-              <svg class="w-5 h-5 text-text-muted group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+              <i data-lucide="arrow-up-right" class="w-5 h-5 text-ink-300 group-hover:text-info-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all"></i>
             </div>
-            <div class="space-y-2.5" id="schedulePreview">
-              <div class="flex items-center gap-3 py-2 border-b border-surface-100">
-                <div class="w-16 text-center">
-                  <div class="text-xs font-semibold text-blue-500">10:00</div>
-                  <div class="text-[10px] text-text-muted">1小时</div>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm text-text-primary font-medium truncate">产品周会</p>
-                  <p class="text-[10px] text-text-muted">会议室 A301</p>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 bg-green-50 text-green-600 rounded-md">已完成</span>
+            <div class="mt-4">
+              <h3 class="text-base font-semibold text-ink-900 group-hover:text-info-600 transition-colors">我的日程</h3>
+              <p class="text-sm text-ink-400 mt-1" id="scheduleStatusText">今日 2 项安排 · 本周空闲：周三下午</p>
+            </div>
+            <div class="mt-4 flex items-center gap-2">
+              <div id="scheduleTimesContainer" class="flex -space-x-1">
               </div>
-              <div class="flex items-center gap-3 py-2">
-                <div class="w-16 text-center">
-                  <div class="text-xs font-semibold text-blue-500">14:00</div>
-                  <div class="text-[10px] text-text-muted">1.5小时</div>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm text-text-primary font-medium truncate">营销创意脑暴会</p>
-                  <p class="text-[10px] text-text-muted">线上会议</p>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md">进行中</span>
-              </div>
+              <span class="text-xs text-ink-400" id="scheduleMeetingText">今日有日程安排</span>
             </div>
           </div>
         </div>
       </section>
-    </section>
+
+      </section>
 
     <!-- ============ 看板页 ============ -->
     <section class="page page-dashboard" data-page="dashboard">
-      <header class="px-5 pt-6 pb-4 lg:px-8 lg:pt-8 border-b border-surface-100">
+      <header class="px-5 pt-6 pb-4 lg:px-8 lg:pt-8 sticky top-0 bg-brand-50/90 backdrop-blur z-10">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl font-bold text-text-primary">信息看板</h2>
-          <div class="flex items-center gap-2">
-            <button class="w-9 h-9 rounded-lg bg-white flex items-center justify-center shadow-sm" onclick="refreshNews()">
-              <svg class="w-4 h-4 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
-            </button>
+          <div>
+            <h1 class="text-[22px] lg:text-2xl font-semibold text-ink-900 tracking-tight mb-1">信息看板</h1>
+            <p class="text-sm text-ink-500">聚合全网热点，把握行业动态</p>
+          </div>
+          <button class="refresh-btn flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-ink-100 hover:border-brand-300 transition-colors group" onclick="refreshNews()" id="refreshBtn">
+            <i data-lucide="refresh-cw" class="w-4 h-4 text-ink-500 group-hover:text-brand-500 transition-colors" id="refreshIcon"></i>
+            <span class="text-xs text-ink-500 group-hover:text-brand-500 transition-colors">刷新</span>
+          </button>
+        </div>
+        
+        <!-- 搜索栏 -->
+        <div class="mt-4 relative">
+          <div class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">
+            <i data-lucide="search" class="w-5 h-5"></i>
+          </div>
+          <input 
+            type="text" 
+            id="newsSearch"
+            placeholder="搜索资讯内容..." 
+            class="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-ink-100 text-sm text-ink-700 placeholder-ink-400 focus:outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100 transition-all"
+            oninput="filterNews()"
+          />
+          <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <span class="text-xs text-ink-400" id="searchCount">8条</span>
+            <span class="text-xs text-success-600 flex items-center gap-1" id="updateStatus">
+              <span class="w-1.5 h-1.5 rounded-full bg-success-500 animate-pulse"></span>
+              实时更新
+            </span>
           </div>
         </div>
       </header>
 
-      <div class="px-5 py-4 lg:px-8">
-        <!-- 分类标签 -->
-        <div class="flex gap-2 overflow-x-auto hide-scrollbar mb-5">
-          <button class="tab-chip px-4 py-2 bg-white rounded-full text-sm font-medium shadow-sm whitespace-nowrap active" data-tab="news" onclick="switchDashboardTab('news')">
-            热点资讯
+      <!-- 分类标签 -->
+      <div class="px-5 lg:px-8 mb-4">
+        <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+          <button class="tab-chip active whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium bg-brand-500 text-white shadow-sm" onclick="filterNewsByCategory('全部')">
+            全部
           </button>
-          <button class="tab-chip px-4 py-2 bg-white rounded-full text-sm font-medium shadow-sm whitespace-nowrap" data-tab="tools" onclick="switchDashboardTab('tools')">
-            效率工具
+          <button class="tab-chip whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium bg-white text-ink-600 hover:bg-ink-50 transition-colors" onclick="filterNewsByCategory('热点追踪')">
+            热点追踪
           </button>
-          <button class="tab-chip px-4 py-2 bg-white rounded-full text-sm font-medium shadow-sm whitespace-nowrap" data-tab="favorites" onclick="switchDashboardTab('favorites')">
-            我的收藏
+          <button class="tab-chip whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium bg-white text-ink-600 hover:bg-ink-50 transition-colors" onclick="filterNewsByCategory('短剧动态')">
+            短剧动态
           </button>
-          <button class="tab-chip px-4 py-2 bg-white rounded-full text-sm font-medium shadow-sm whitespace-nowrap" data-tab="history" onclick="switchDashboardTab('history')">
-            浏览历史
+          <button class="tab-chip whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium bg-white text-ink-600 hover:bg-ink-50 transition-colors" onclick="filterNewsByCategory('营销灵感')">
+            营销灵感
+          </button>
+          <button class="tab-chip whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium bg-white text-ink-600 hover:bg-ink-50 transition-colors" onclick="filterNewsByCategory('行业报告')">
+            行业报告
           </button>
         </div>
+      </div>
 
-        <!-- 资讯面板 -->
-        <div class="dashboard-panel active" data-panel="news">
-          <div class="space-y-3" id="newsList"></div>
-          <div id="newsLoading" class="hidden py-8 text-center">
-            <div class="inline-block w-6 h-6 border-2 border-primary-300 border-t-primary-500 rounded-full animate-spin"></div>
-            <p class="text-sm text-text-muted mt-2">正在加载资讯...</p>
-          </div>
-        </div>
-
-        <!-- 工具面板 -->
-        <div class="dashboard-panel hidden" data-panel="tools">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <!-- 番茄钟 -->
-            <div class="bg-white rounded-xl2 p-5 shadow-card">
-              <div class="flex items-center gap-2 mb-4">
-                <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
-                  <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <h3 class="font-semibold text-text-primary">番茄钟</h3>
-              </div>
-              <div class="text-center py-6">
-                <div class="text-5xl font-bold text-text-primary font-mono tracking-wider" id="pomodoroTime">25:00</div>
-                <p class="text-sm text-text-muted mt-2" id="pomodoroStatus">准备开始</p>
-              </div>
-              <div class="flex gap-2">
-                <button class="flex-1 py-2.5 bg-gradient-to-r from-primary-400 to-primary-500 text-white rounded-xl font-medium text-sm" onclick="startPomodoro()">开始</button>
-                <button class="flex-1 py-2.5 bg-surface-100 text-text-secondary rounded-xl font-medium text-sm" onclick="pausePomodoro()">暂停</button>
-                <button class="flex-1 py-2.5 bg-surface-100 text-text-secondary rounded-xl font-medium text-sm" onclick="resetPomodoro()">重置</button>
-              </div>
-            </div>
-
-            <!-- 密码生成器 -->
-            <div class="bg-white rounded-xl2 p-5 shadow-card">
-              <div class="flex items-center gap-2 mb-4">
-                <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-                  <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
-                </div>
-                <h3 class="font-semibold text-text-primary">密码生成器</h3>
-              </div>
-              <div class="bg-surface-50 rounded-xl p-4 mb-3">
-                <p class="text-lg font-mono text-text-primary break-all" id="generatedPassword">Click Generate</p>
-              </div>
-              <div class="flex gap-2 mb-3">
-                <label class="flex items-center gap-1.5 text-sm text-text-secondary">
-                  <input type="checkbox" id="pwdUppercase" checked class="rounded border-surface-200">
-                  <span class="text-xs">大写</span>
-                </label>
-                <label class="flex items-center gap-1.5 text-sm text-text-secondary">
-                  <input type="checkbox" id="pwdNumbers" checked class="rounded border-surface-200">
-                  <span class="text-xs">数字</span>
-                </label>
-                <label class="flex items-center gap-1.5 text-sm text-text-secondary">
-                  <input type="checkbox" id="pwdSymbols" class="rounded border-surface-200">
-                  <span class="text-xs">符号</span>
-                </label>
-              </div>
-              <button class="w-full py-2.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-xl font-medium text-sm" onclick="generatePassword()">生成密码</button>
-            </div>
-
-            <!-- 二维码生成 -->
-            <div class="bg-white rounded-xl2 p-5 shadow-card lg:col-span-2">
-              <div class="flex items-center gap-2 mb-4">
-                <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-                  <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/></svg>
-                </div>
-                <h3 class="font-semibold text-text-primary">二维码生成</h3>
-              </div>
-              <div class="flex gap-3 mb-4">
-                <input type="text" id="qrInput" placeholder="输入文字或链接..." class="flex-1 px-4 py-2.5 bg-surface-50 rounded-xl text-sm border-none focus:ring-2 focus:ring-primary-200 outline-none">
-                <button class="px-5 py-2.5 bg-gradient-to-r from-purple-400 to-purple-500 text-white rounded-xl font-medium text-sm whitespace-nowrap" onclick="generateQR()">生成</button>
-              </div>
-              <div class="flex justify-center" id="qrResult"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 收藏面板 -->
-        <div class="dashboard-panel hidden" data-panel="favorites">
-          <div class="space-y-3" id="favoritesList">
-            <div class="empty-state">
-              <svg class="w-12 h-12 mx-auto mb-3 text-text-muted opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
-              <p class="text-sm text-text-muted">暂无收藏内容</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 历史面板 -->
-        <div class="dashboard-panel hidden" data-panel="history">
-          <div class="space-y-3" id="historyList">
-            <div class="empty-state">
-              <svg class="w-12 h-12 mx-auto mb-3 text-text-muted opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <p class="text-sm text-text-muted">暂无浏览记录</p>
-            </div>
-          </div>
+      <!-- 信息列表 -->
+      <div class="px-5 lg:px-8 pb-24 lg:pb-12">
+        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4" id="newsList">
         </div>
       </div>
     </section>
 
     <!-- ============ 我的页 ============ -->
     <section class="page page-profile" data-page="profile">
-      <header class="px-5 pt-6 pb-4 lg:px-8 lg:pt-8 border-b border-surface-100">
-        <h2 class="text-xl font-bold text-text-primary">我的</h2>
+      <header class="px-5 pt-6 pb-4 lg:px-8 lg:pt-8">
+        <h1 class="text-[22px] lg:text-2xl font-semibold text-ink-900 tracking-tight mb-1">我的</h1>
+        <p class="text-sm text-ink-500">个人中心与数据统计</p>
       </header>
 
-      <div class="px-5 py-4 lg:px-8 space-y-4">
-        <!-- 用户信息 -->
+      <!-- 个人信息卡片 -->
+      <section class="px-5 lg:px-8 mb-6">
+        <div class="bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl2 p-5 text-white relative overflow-hidden">
+          <div class="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10"></div>
+          <div class="absolute -right-12 bottom-0 w-40 h-40 rounded-full bg-white/5"></div>
+          <div class="relative">
+            <div class="flex items-center gap-4">
+              <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-semibold border-2 border-white/30">
+                生
+              </div>
+              <div class="flex-1">
+                <h2 class="text-lg font-semibold">生产队小绵羊</h2>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-xs bg-white/20 px-2 py-0.5 rounded-full">高级会员</span>
+                  <span class="text-xs text-white/70">ID: 880217</span>
+                </div>
+              </div>
+              <button class="w-10 h-10 rounded-full bg-white/15 backdrop-blur flex items-center justify-center hover:bg-white/25 transition-colors">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mt-5 pt-5 border-t border-white/20">
+              <div class="text-center">
+                <div class="text-xl font-semibold" id="profileTotalTodos">128</div>
+                <div class="text-xs text-white/70 mt-0.5">累计待办</div>
+              </div>
+              <div class="text-center">
+                <div class="text-xl font-semibold" id="profileCompleted">96</div>
+                <div class="text-xs text-white/70 mt-0.5">已完成</div>
+              </div>
+              <div class="text-center">
+                <div class="text-xl font-semibold" id="profileRate">75%</div>
+                <div class="text-xs text-white/70 mt-0.5">完成率</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 数据统计 -->
+      <section class="px-5 lg:px-8 mb-6">
+        <h3 class="text-base font-semibold text-ink-900 mb-3">本周效率</h3>
         <div class="bg-white rounded-xl2 p-5 shadow-card">
-          <div class="flex items-center gap-4">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="头像" class="w-16 h-16 rounded-full bg-surface-100">
-            <div class="flex-1">
-              <h3 class="font-semibold text-text-primary text-lg">产品经理</h3>
-              <p class="text-sm text-text-muted">product@company.com</p>
-              <div class="flex items-center gap-2 mt-2">
-                <span class="text-xs px-2 py-0.5 bg-primary-50 text-primary-500 rounded-md font-medium">Pro 会员</span>
-                <span class="text-xs text-text-muted">2026-12-31 到期</span>
-              </div>
+          <div class="flex items-end justify-between h-32 gap-2 mb-4" id="weeklyChart">
+          </div>
+          <div class="flex items-center justify-between pt-4 border-t border-ink-50">
+            <div>
+              <div class="text-xs text-ink-400">本周平均完成率</div>
+              <div class="text-lg font-semibold text-ink-900 mt-0.5">62.5%</div>
             </div>
+            <span class="text-xs text-success-600 bg-success-50 px-2 py-1 rounded-full font-medium">
+              比上周 +8.3%
+            </span>
           </div>
         </div>
+      </section>
 
-        <!-- 统计 -->
-        <div class="grid grid-cols-3 gap-3">
-          <div class="bg-white rounded-xl p-4 shadow-card text-center">
-            <div class="text-2xl font-bold text-text-primary" id="profileTodoCount">0</div>
-            <div class="text-xs text-text-muted mt-1">待办任务</div>
-          </div>
-          <div class="bg-white rounded-xl p-4 shadow-card text-center">
-            <div class="text-2xl font-bold text-text-primary" id="profileScheduleCount">0</div>
-            <div class="text-xs text-text-muted mt-1">日程</div>
-          </div>
-          <div class="bg-white rounded-xl p-4 shadow-card text-center">
-            <div class="text-2xl font-bold text-text-primary" id="profileCompleteRate">0%</div>
-            <div class="text-xs text-text-muted mt-1">完成率</div>
-          </div>
-        </div>
-
-        <!-- 设置 -->
+      <!-- 功能列表 -->
+      <section class="px-5 lg:px-8 pb-24 lg:pb-12">
         <div class="bg-white rounded-xl2 shadow-card overflow-hidden">
-          <div class="setting-item flex items-center justify-between p-4 border-b border-surface-50 cursor-pointer" onclick="toggleSetting(this, 'notifications')">
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
-              </div>
-              <span class="text-sm text-text-primary">消息通知</span>
+          <button class="setting-item w-full flex items-center gap-4 px-4 py-3.5 hover:bg-ink-50 transition-colors border-b border-ink-50" onclick="openModal('favoritesModal')">
+            <div class="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center text-brand-500">
+              <i data-lucide="bookmark" class="w-5 h-5"></i>
             </div>
-            <div class="w-11 h-6 bg-primary-400 rounded-full relative transition-colors" data-setting="notifications">
-              <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 shadow-sm transition-transform"></div>
+            <span class="flex-1 text-left text-sm text-ink-700">我的收藏</span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-ink-300"></i>
+          </button>
+          <button class="setting-item w-full flex items-center gap-4 px-4 py-3.5 hover:bg-ink-50 transition-colors border-b border-ink-50" onclick="openModal('historyModal')">
+            <div class="w-9 h-9 rounded-lg bg-success-50 flex items-center justify-center text-success-500">
+              <i data-lucide="history" class="w-5 h-5"></i>
             </div>
-          </div>
-          <div class="setting-item flex items-center justify-between p-4 border-b border-surface-50 cursor-pointer" onclick="toggleSetting(this, 'darkMode')">
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-                <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>
-              </div>
-              <span class="text-sm text-text-primary">深色模式</span>
+            <span class="flex-1 text-left text-sm text-ink-700">浏览历史</span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-ink-300"></i>
+          </button>
+          <button class="setting-item w-full flex items-center gap-4 px-4 py-3.5 hover:bg-ink-50 transition-colors border-b border-ink-50" onclick="showToast('消息通知功能开发中', 'info')">
+            <div class="w-9 h-9 rounded-lg bg-info-50 flex items-center justify-center text-info-500">
+              <i data-lucide="bell" class="w-5 h-5"></i>
             </div>
-            <div class="w-11 h-6 bg-surface-200 rounded-full relative transition-colors" data-setting="darkMode">
-              <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm transition-transform"></div>
+            <span class="flex-1 text-left text-sm text-ink-700">消息通知</span>
+            <span class="text-xs text-ink-400">已开启</span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-ink-300"></i>
+          </button>
+          <button class="setting-item w-full flex items-center gap-4 px-4 py-3.5 hover:bg-ink-50 transition-colors border-b border-ink-50" onclick="showToast('主题设置功能开发中', 'info')">
+            <div class="w-9 h-9 rounded-lg bg-warning-50 flex items-center justify-center text-warning-500">
+              <i data-lucide="palette" class="w-5 h-5"></i>
             </div>
-          </div>
-          <div class="setting-item flex items-center justify-between p-4 cursor-pointer" onclick="toggleSetting(this, 'autoSync')">
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
-              </div>
-              <span class="text-sm text-text-primary">自动同步</span>
+            <span class="flex-1 text-left text-sm text-ink-700">主题设置</span>
+            <span class="text-xs text-ink-400">浅色模式</span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-ink-300"></i>
+          </button>
+          <button class="setting-item w-full flex items-center gap-4 px-4 py-3.5 hover:bg-ink-50 transition-colors" onclick="showToast('通用设置功能开发中', 'info')">
+            <div class="w-9 h-9 rounded-lg bg-ink-100 flex items-center justify-center text-ink-500">
+              <i data-lucide="settings" class="w-5 h-5"></i>
             </div>
-            <div class="w-11 h-6 bg-primary-400 rounded-full relative transition-colors" data-setting="autoSync">
-              <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 shadow-sm transition-transform"></div>
-            </div>
-          </div>
+            <span class="flex-1 text-left text-sm text-ink-700">通用设置</span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-ink-300"></i>
+          </button>
         </div>
-
-        <!-- 关于 -->
-        <div class="bg-white rounded-xl2 shadow-card overflow-hidden">
-          <div class="p-4 border-b border-surface-50">
-            <span class="text-xs text-text-muted uppercase tracking-wider">关于</span>
-          </div>
-          <div class="p-4">
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-sm text-text-primary">版本</span>
-              <span class="text-sm text-text-muted">v3.0.0</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-text-primary">数据存储</span>
-              <span class="text-sm text-text-muted" id="storageMode">本地存储</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      </section>
     </section>
 
   </main>
 
-  <!-- ============ 底部标签栏（移动端） ============ -->
+  <!-- 底部标签栏（移动端） -->
   <nav class="tab-bar lg:hidden">
-    <button class="tab-item active" data-page="home" onclick="switchPage('home')">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
-      <span class="text-[10px] font-medium">首页</span>
+    <button class="tab-item active" onclick="switchPage('home')">
+      <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+      <span class="text-[11px] font-medium mt-0.5">首页</span>
     </button>
-    <button class="tab-item" data-page="dashboard" onclick="switchPage('dashboard')">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
-      <span class="text-[10px] font-medium">看板</span>
+    <button class="tab-item" onclick="switchPage('dashboard')">
+      <i data-lucide="newspaper" class="w-5 h-5"></i>
+      <span class="text-[11px] font-medium mt-0.5">看板</span>
     </button>
-    <button class="tab-item" data-page="profile" onclick="switchPage('profile')">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
-      <span class="text-[10px] font-medium">我的</span>
+    <button class="tab-item" onclick="switchPage('profile')">
+      <i data-lucide="user" class="w-5 h-5"></i>
+      <span class="text-[11px] font-medium mt-0.5">我的</span>
     </button>
   </nav>
 
-  <!-- ============ 全屏模态框 ============ -->
+  <!-- ============ 详情弹窗 ============ -->
+  <div id="modalOverlay" class="modal-overlay hidden"></div>
 
-  <!-- 待办列表弹窗 -->
-  <div id="todoListModal" class="modal hidden" style="z-index: 200;">
-    <div class="modal-overlay" onclick="closeModal('todoListModal')"></div>
-    <div class="modal-content" style="max-width: 100%;">
+  <!-- 统计详情弹窗 -->
+  <div id="statsModal" class="modal hidden">
+    <div class="modal-content">
       <div class="modal-header">
-        <div class="flex items-center gap-3">
-          <h3 class="text-base font-semibold text-text-primary">待办任务</h3>
-          <span class="text-xs px-2 py-0.5 bg-primary-50 text-primary-500 rounded-md" id="todoListCount">0 项</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button class="px-3 py-1.5 bg-primary-400 text-white text-sm rounded-lg font-medium" onclick="openTodoEditModal()">+ 新增</button>
-          <button class="modal-close" onclick="closeModal('todoListModal')" style="width: 28px; height: 28px;">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
+        <h3 class="text-lg font-semibold text-ink-900">数据统计</h3>
+        <button class="modal-close" onclick="closeModal('statsModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
       <div class="modal-body">
-        <div class="space-y-2.5" id="todoList"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 待办编辑弹窗 -->
-  <div id="todoEditModal" class="modal hidden" style="z-index: 201;">
-    <div class="modal-overlay" onclick="closeModal('todoEditModal')"></div>
-    <div class="modal-content" style="max-width: 100%;">
-      <div class="modal-header">
-        <h3 class="text-base font-semibold text-text-primary" id="todoEditTitle">新增待办</h3>
-        <div class="flex items-center gap-2">
-          <button class="text-red-500 text-sm font-medium px-3 py-1.5 hover:bg-red-50 rounded-lg transition-colors" id="todoEditDeleteBtn" onclick="deleteTodoFromEdit()" style="display: none;">删除</button>
-          <button class="modal-close" onclick="closeModal('todoEditModal')" style="width: 28px; height: 28px;">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="modal-body">
-        <form id="todoEditForm" onsubmit="saveTodo(event)">
-          <input type="hidden" id="todoEditId">
-          <div class="space-y-4">
-            <div>
-              <label class="form-label block mb-2">任务名称</label>
-              <input type="text" id="todoEditName" class="form-input" placeholder="输入任务名称..." required>
-            </div>
-            <div>
-              <label class="form-label block mb-2">截止时间</label>
-              <input type="datetime-local" id="todoEditDeadline" class="form-input" required>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="form-label block mb-2">任务类型</label>
-                <select id="todoEditType" class="form-input form-select">
-                  <option value="day">日任务</option>
-                  <option value="week">周任务</option>
-                  <option value="month">月任务</option>
-                </select>
-              </div>
-              <div>
-                <label class="form-label block mb-2">紧急-重要</label>
-                <select id="todoEditQuadrant" class="form-input form-select">
-                  <option value="urgent-important">紧急·重要</option>
-                  <option value="normal-important">不紧急·重要</option>
-                  <option value="urgent-normal">紧急·不重要</option>
-                  <option value="normal-normal">不紧急·不重要</option>
-                </select>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="form-label block mb-2">优先级</label>
-                <select id="todoEditPriority" class="form-input form-select">
-                  <option value="high">高</option>
-                  <option value="medium">中</option>
-                  <option value="low">低</option>
-                </select>
-              </div>
-              <div>
-                <label class="form-label block mb-2">协作伙伴</label>
-                <input type="text" id="todoEditPartners" class="form-input" placeholder="输入协作伙伴姓名...">
-              </div>
-            </div>
-            <div>
-              <label class="form-label block mb-2">完成进度</label>
-              <div class="bg-surface-50 rounded-xl p-4">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm text-text-secondary">进度</span>
-                  <span class="text-sm font-semibold text-primary-500" id="todoEditProgressValue">0%</span>
-                </div>
-                <input type="range" id="todoEditProgress" class="w-full" min="0" max="100" value="0" oninput="document.getElementById('todoEditProgressValue').textContent = this.value + '%'">
-              </div>
-            </div>
-            <div>
-              <label class="form-label block mb-2">任务描述</label>
-              <textarea id="todoEditDescription" class="form-input form-textarea" placeholder="输入任务描述..."></textarea>
-            </div>
-            <button type="submit" class="w-full py-3 bg-gradient-to-r from-primary-400 to-primary-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-primary-200">保存</button>
+        <div class="grid grid-cols-2 gap-3 mb-5">
+          <div class="bg-brand-50 rounded-xl p-4 text-center">
+            <div class="text-2xl font-semibold text-brand-600" id="statsTodoCount">8</div>
+            <div class="text-xs text-brand-500 mt-1">待办总数</div>
           </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- 甘特图弹窗 -->
-  <div id="ganttModal" class="modal hidden" style="z-index: 200;">
-    <div class="modal-overlay" onclick="closeModal('ganttModal')"></div>
-    <div class="modal-content" style="max-width: 100%; height: 92vh; max-height: 92vh;">
-      <div class="gantt-modal-header modal-header">
-        <div class="flex items-center gap-3">
-          <h3 class="text-base font-semibold text-text-primary" id="ganttDateTitle">今日日程</h3>
-          <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-500 rounded-md" id="ganttScheduleCount">0 项</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button class="w-7 h-7 rounded-lg bg-surface-50 flex items-center justify-center text-text-secondary hover:bg-surface-100" onclick="changeGanttDate(-1)">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
-          </button>
-          <button class="w-7 h-7 rounded-lg bg-surface-50 flex items-center justify-center text-text-secondary hover:bg-surface-100" onclick="changeGanttDate(1)">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
-          </button>
-          <button class="px-3 py-1.5 bg-blue-400 text-white text-sm rounded-lg font-medium" onclick="openScheduleEditModal()">+ 新增</button>
-          <button class="modal-close" onclick="closeModal('ganttModal')" style="width: 24px !important; height: 24px !important; padding: 0 !important;">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="modal-body" style="padding: 10px; overflow: hidden;">
-        <div id="ganttContainer" class="overflow-y-auto" style="height: calc(92vh - 60px);">
-          <div id="ganttChart"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 日程编辑弹窗 -->
-  <div id="scheduleEditModal" class="modal hidden" style="z-index: 201;">
-    <div class="modal-overlay" onclick="closeModal('scheduleEditModal')"></div>
-    <div class="modal-content" style="max-width: 100%;">
-      <div class="modal-header">
-        <h3 class="text-base font-semibold text-text-primary" id="scheduleEditTitle">新增日程</h3>
-        <div class="flex items-center gap-2">
-          <button class="text-red-500 text-sm font-medium px-3 py-1.5 hover:bg-red-50 rounded-lg transition-colors" id="scheduleEditDeleteBtn" onclick="deleteScheduleFromEdit()" style="display: none;">删除</button>
-          <button class="modal-close" onclick="closeModal('scheduleEditModal')" style="width: 28px; height: 28px;">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="modal-body">
-        <form id="scheduleEditForm" onsubmit="saveSchedule(event)">
-          <input type="hidden" id="scheduleEditId">
-          <div class="space-y-4">
-            <div>
-              <label class="form-label block mb-2">日程名称</label>
-              <input type="text" id="scheduleEditName" class="form-input" placeholder="输入日程名称..." required>
-            </div>
-            <div>
-              <label class="form-label block mb-2">日期</label>
-              <input type="date" id="scheduleEditDate" class="form-input" required>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="form-label block mb-2">开始时间</label>
-                <div class="time-picker-wrapper">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  <input type="time" id="scheduleEditStart" required>
-                </div>
-              </div>
-              <div>
-                <label class="form-label block mb-2">结束时间</label>
-                <div class="time-picker-wrapper">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  <input type="time" id="scheduleEditEnd" required>
-                </div>
-              </div>
-            </div>
-            <div>
-              <label class="form-label block mb-2">紧急-重要</label>
-              <select id="scheduleEditQuadrant" class="form-input form-select">
-                <option value="urgent-important">紧急·重要</option>
-                <option value="normal-important">不紧急·重要</option>
-                <option value="urgent-normal">紧急·不重要</option>
-                <option value="normal-normal">不紧急·不重要</option>
-              </select>
-            </div>
-            <div>
-              <label class="form-label block mb-2">隶属待办任务</label>
-              <select id="scheduleEditParentTodo" class="form-input form-select">
-                <option value="">创建新待办任务</option>
-              </select>
-            </div>
-            <div>
-              <label class="form-label block mb-2">地点</label>
-              <input type="text" id="scheduleEditLocation" class="form-input" placeholder="输入地点...">
-            </div>
-            <div>
-              <label class="form-label block mb-2">参与人员</label>
-              <input type="text" id="scheduleEditParticipants" class="form-input" placeholder="输入参与人员...">
-            </div>
-            <div>
-              <label class="form-label block mb-2">完成进度</label>
-              <div class="bg-surface-50 rounded-xl p-4">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm text-text-secondary">进度</span>
-                  <span class="text-sm font-semibold text-blue-500" id="scheduleEditProgressValue">0%</span>
-                </div>
-                <input type="range" id="scheduleEditProgress" class="w-full" min="0" max="100" value="0" oninput="document.getElementById('scheduleEditProgressValue').textContent = this.value + '%'">
-              </div>
-            </div>
-            <div>
-              <label class="form-label block mb-2">备注</label>
-              <textarea id="scheduleEditNote" class="form-input form-textarea" placeholder="输入备注..."></textarea>
-            </div>
-            <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-400 to-blue-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-blue-200">保存</button>
+          <div class="bg-success-50 rounded-xl p-4 text-center">
+            <div class="text-2xl font-semibold text-success-600" id="statsCompletedCount">3</div>
+            <div class="text-xs text-success-500 mt-1">已完成</div>
           </div>
-        </form>
+          <div class="bg-info-50 rounded-xl p-4 text-center">
+            <div class="text-2xl font-semibold text-info-600" id="statsScheduleCount">2</div>
+            <div class="text-xs text-info-500 mt-1">今日日程</div>
+          </div>
+          <div class="bg-warning-50 rounded-xl p-4 text-center">
+            <div class="text-2xl font-semibold text-warning-600" id="statsRate">37.5%</div>
+            <div class="text-xs text-warning-500 mt-1">完成率</div>
+          </div>
+        </div>
+        <div class="bg-ink-50 rounded-xl p-4">
+          <h4 class="text-sm font-medium text-ink-900 mb-3">完成趋势</h4>
+          <div class="flex items-end justify-between h-24 gap-2">
+            <div class="flex-1 flex flex-col items-center gap-2">
+              <div class="w-full bg-brand-200 rounded-t-lg h-[60%]"></div>
+              <span class="text-xs text-ink-400">周一</span>
+            </div>
+            <div class="flex-1 flex flex-col items-center gap-2">
+              <div class="w-full bg-brand-300 rounded-t-lg h-[80%]"></div>
+              <span class="text-xs text-ink-400">周二</span>
+            </div>
+            <div class="flex-1 flex flex-col items-center gap-2">
+              <div class="w-full bg-brand-400 rounded-t-lg h-[45%]"></div>
+              <span class="text-xs text-ink-400">周三</span>
+            </div>
+            <div class="flex-1 flex flex-col items-center gap-2">
+              <div class="w-full bg-brand-300 rounded-t-lg h-[70%]"></div>
+              <span class="text-xs text-ink-400">周四</span>
+            </div>
+            <div class="flex-1 flex flex-col items-center gap-2">
+              <div class="w-full bg-brand-200 rounded-t-lg h-[55%]"></div>
+              <span class="text-xs text-ink-400">周五</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- 进度预警弹窗 -->
-  <div id="warningModal" class="modal hidden" style="z-index: 200;">
-    <div class="modal-overlay" onclick="closeModal('warningModal')"></div>
-    <div class="modal-content" id="warningModalContent" style="max-width: 100%;">
+  <div id="warningModal" class="modal hidden">
+    <div class="modal-content">
       <div class="modal-header">
-        <div class="flex items-center gap-3">
-          <h3 class="text-base font-semibold text-text-primary">进度预警</h3>
-          <span class="text-xs px-2 py-0.5 bg-red-50 text-red-500 rounded-md" id="warningCount">0 项</span>
-        </div>
-        <button class="modal-close" onclick="closeModal('warningModal')" style="width: 28px; height: 28px;">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        <h3 class="text-lg font-semibold text-ink-900 flex items-center gap-2">
+          <i data-lucide="alert-triangle" class="w-5 h-5 text-danger-500"></i>
+          进度预警
+        </h3>
+        <button class="modal-close" onclick="closeModal('warningModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
       <div class="modal-body">
-        <div id="warningQuadrants" class="quadrant-container">
+        <p class="text-sm text-ink-500 mb-4">以下任务进度滞后或即将到期，请及时关注</p>
+        
+        <!-- 四象限 -->
+        <div class="quadrant-container">
+          <!-- 紧急且重要 -->
           <div class="quadrant quadrant-urgent-important">
             <div class="quadrant-header">
-              <span class="quadrant-title">紧急·重要</span>
-              <span class="quadrant-count" id="count-urgent-important">0</span>
+              <span class="quadrant-title">紧急 · 重要</span>
+              <span class="quadrant-count" id="q1Count">0</span>
             </div>
-            <div class="quadrant-content" id="list-urgent-important"></div>
+            <div class="quadrant-content" id="q1Content">
+            </div>
           </div>
+          
+          <!-- 不紧急但重要 -->
           <div class="quadrant quadrant-normal-important">
             <div class="quadrant-header">
-              <span class="quadrant-title">不紧急·重要</span>
-              <span class="quadrant-count" id="count-normal-important">0</span>
+              <span class="quadrant-title">不紧急 · 重要</span>
+              <span class="quadrant-count" id="q2Count">0</span>
             </div>
-            <div class="quadrant-content" id="list-normal-important"></div>
+            <div class="quadrant-content" id="q2Content">
+            </div>
           </div>
+          
+          <!-- 紧急但不重要 -->
           <div class="quadrant quadrant-urgent-normal">
             <div class="quadrant-header">
-              <span class="quadrant-title">紧急·不重要</span>
-              <span class="quadrant-count" id="count-urgent-normal">0</span>
+              <span class="quadrant-title">紧急 · 不重要</span>
+              <span class="quadrant-count" id="q3Count">0</span>
             </div>
-            <div class="quadrant-content" id="list-urgent-normal"></div>
+            <div class="quadrant-content" id="q3Content">
+            </div>
           </div>
+          
+          <!-- 不紧急不重要 -->
           <div class="quadrant quadrant-normal-normal">
             <div class="quadrant-header">
-              <span class="quadrant-title">不紧急·不重要</span>
-              <span class="quadrant-count" id="count-normal-normal">0</span>
+              <span class="quadrant-title">不紧急 · 不重要</span>
+              <span class="quadrant-count" id="q4Count">0</span>
             </div>
-            <div class="quadrant-content" id="list-normal-normal"></div>
+            <div class="quadrant-content" id="q4Content">
+            </div>
           </div>
         </div>
-        <div id="warningEmpty" class="empty-state hidden">
-          <svg class="w-12 h-12 mx-auto mb-3 text-text-muted opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <p class="text-sm text-text-muted">暂无预警事项</p>
-          <p class="text-xs text-text-muted mt-1">所有任务进度正常</p>
+        
+        <div class="mt-4 pt-4 border-t border-ink-100">
+          <div class="flex items-center justify-between text-xs text-ink-400">
+            <span>共 <span id="totalWarningCount" class="font-medium text-ink-600">0</span> 项需关注</span>
+            <span>更新时间：刚刚</span>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 通知弹窗 -->
-  <div id="notificationModal" class="modal hidden" style="z-index: 200;">
-    <div class="modal-overlay" onclick="closeModal('notificationModal')"></div>
-    <div class="modal-content" style="max-width: 100%;">
+  <!-- 通知列表弹窗 -->
+  <div id="notificationModal" class="modal hidden">
+    <div class="modal-content">
       <div class="modal-header">
-        <div class="flex items-center gap-3">
-          <h3 class="text-base font-semibold text-text-primary">消息通知</h3>
-          <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-500 rounded-md" id="notificationBadge">0 条</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button class="text-sm text-text-muted hover:text-text-primary px-2 py-1" onclick="clearAllNotifications()">清空</button>
-          <button class="modal-close" onclick="closeModal('notificationModal')" style="width: 28px; height: 28px;">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
+        <h3 class="text-lg font-semibold text-ink-900 flex items-center gap-2">
+          <i data-lucide="bell" class="w-5 h-5 text-brand-500"></i>
+          消息通知
+        </h3>
+        <button class="modal-close" onclick="closeModal('notificationModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
       <div class="modal-body">
-        <div class="space-y-2" id="notificationList"></div>
-        <div id="notificationEmpty" class="empty-state">
-          <svg class="w-12 h-12 mx-auto mb-3 text-text-muted opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
-          <p class="text-sm text-text-muted">暂无通知</p>
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-sm text-ink-500">共 <span id="notifCount" class="font-medium text-ink-700">0</span> 条通知</span>
+          <button class="text-xs text-brand-600 hover:text-brand-700 font-medium" onclick="clearNotifications()">全部已读</button>
+        </div>
+        <div class="space-y-2 max-h-[60vh] overflow-y-auto" id="notificationList">
         </div>
       </div>
     </div>
   </div>
 
   <!-- 资讯详情弹窗 -->
-  <div id="newsDetailModal" class="modal hidden" style="z-index: 200;">
-    <div class="modal-overlay" onclick="closeModal('newsDetailModal')"></div>
-    <div class="modal-content" style="max-width: 100%;">
+  <div id="newsModal" class="modal hidden">
+    <div class="modal-content">
       <div class="modal-header">
-        <h3 class="text-base font-semibold text-text-primary">资讯详情</h3>
-        <button class="modal-close" onclick="closeModal('newsDetailModal')" style="width: 28px; height: 28px;">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        <button class="modal-close" onclick="closeModal('newsModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <div class="modal-body" id="newsDetailContent"></div>
+      <div class="modal-body">
+        <div class="aspect-[16/9] bg-gradient-to-br from-brand-200 to-brand-400 relative overflow-hidden mb-5">
+          <div class="absolute inset-0 flex items-center justify-center text-white/30">
+            <i data-lucide="trending-up" class="w-24 h-24"></i>
+          </div>
+          <span class="absolute top-4 left-4 px-3 py-1 rounded-md bg-white/90 backdrop-blur text-xs font-medium text-brand-700" id="newsModalCategory">
+            热点追踪
+          </span>
+        </div>
+        <h2 id="newsModalTitle" class="text-xl font-semibold text-ink-900 mb-3">文章标题</h2>
+        <div class="flex items-center gap-3 mb-4 text-sm text-ink-400">
+          <span id="newsModalSource">行业前沿</span>
+          <span>·</span>
+          <span id="newsModalTime">3小时前</span>
+          <span>·</span>
+          <span id="newsModalReads">阅读 1.2k</span>
+        </div>
+        <div id="newsModalContent" class="text-sm text-ink-600 leading-relaxed space-y-3">
+          <p>文章内容将在这里显示...</p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-ink-100">
+          <div class="flex items-center justify-between">
+            <button class="flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 transition-colors" id="newsSourceLink">
+              <i data-lucide="external-link" class="w-4 h-4"></i>
+              <span>查看原文</span>
+            </button>
+            <button class="flex items-center gap-2 text-sm text-ink-600 hover:text-brand-600 transition-colors">
+              <i data-lucide="share-2" class="w-4 h-4"></i>
+              <span>分享</span>
+            </button>
+            <button class="flex items-center gap-2 text-sm text-ink-600 hover:text-brand-600 transition-colors">
+              <i data-lucide="bookmark" class="w-4 h-4"></i>
+              <span>收藏</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <script src="src/scripts/dataService.js"></script>
-  <script src="src/scripts/supabaseClient.js"></script>
-  <script src="src/scripts/app.js"></script>
+  <!-- 待办列表弹窗 -->
+  <div id="todoListModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="text-lg font-semibold text-ink-900">待办任务</h3>
+        <button class="modal-close" onclick="closeModal('todoListModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-ink-500">今日</span>
+            <span class="text-sm font-semibold text-ink-900">共 <span id="todoListCount">8</span> 项</span>
+            <span class="text-sm text-success-600">已完成 <span id="todoListCompleted">3</span> 项</span>
+          </div>
+          <button class="px-3 py-1.5 rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600 transition-colors flex items-center gap-1" onclick="openTodoEditModal()">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            添加
+          </button>
+        </div>
+        <div class="space-y-2 max-h-[50vh] overflow-y-auto" id="todoListContainer">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 待办编辑弹窗 -->
+  <div id="todoEditModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="text-lg font-semibold text-ink-900" id="todoEditTitle">添加待办</h3>
+        <button class="modal-close" onclick="closeModal('todoEditModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="todoEditForm" onsubmit="saveTodo(event)">
+          <input type="hidden" id="todoEditId" />
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-ink-500 mb-1.5">任务名称</label>
+              <input type="text" id="todoEditName" class="w-full px-4 py-2.5 rounded-xl bg-ink-50 border-none text-sm text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all" placeholder="请输入任务名称" required />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">截止时间</label>
+                <div class="time-picker-wrapper">
+                  <i data-lucide="calendar-clock" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                  <input type="datetime-local" id="todoEditDeadline" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">紧急-重要</label>
+                <select id="todoEditQuadrant" class="w-full px-4 py-2.5 rounded-xl bg-ink-50 border-none text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all">
+                  <option value="urgent-important">紧急·重要</option>
+                  <option value="normal-important">不紧急·重要</option>
+                  <option value="urgent-normal">紧急·不重要</option>
+                  <option value="normal-normal" selected>不紧急·不重要</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">任务类型</label>
+                <select id="todoEditType" class="w-full px-3 py-2 rounded-xl bg-ink-50 border-none text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all">
+                  <option value="day">日任务</option>
+                  <option value="week" selected>周任务</option>
+                  <option value="month">月任务</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">优先级</label>
+                <select id="todoEditPriority" class="w-full px-3 py-2 rounded-xl bg-ink-50 border-none text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all">
+                  <option value="high">高</option>
+                  <option value="medium" selected>中</option>
+                  <option value="low">低</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">合作人</label>
+                <input type="text" id="todoEditPartners" class="w-full px-3 py-2 rounded-xl bg-ink-50 border-none text-sm text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all" placeholder="如：张三" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-500 mb-1.5">进度</label>
+              <div class="flex items-center gap-3">
+                <input type="range" id="todoEditProgress" min="0" max="100" value="0" class="flex-1 h-2 bg-ink-200 rounded-full appearance-none cursor-pointer accent-brand-500" />
+                <span class="text-sm font-medium text-ink-700 w-12 text-right" id="todoEditProgressText">0%</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-500 mb-1.5">描述</label>
+              <textarea id="todoEditDescription" rows="3" class="w-full px-4 py-2.5 rounded-xl bg-ink-50 border-none text-sm text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all resize-none" placeholder="请输入任务描述"></textarea>
+            </div>
+          </div>
+          <div class="mt-6 flex gap-3">
+            <button type="button" class="flex-1 py-2.5 rounded-xl bg-ink-100 text-ink-600 text-sm font-medium hover:bg-ink-200 transition-colors" onclick="closeModal('todoEditModal')">
+              取消
+            </button>
+            <button type="button" id="todoDeleteBtn" class="hidden flex-1 py-2.5 rounded-xl bg-danger-50 text-danger-600 text-sm font-medium hover:bg-danger-100 transition-colors" onclick="deleteTodoFromEdit()">
+              删除
+            </button>
+            <button type="submit" class="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors">
+              保存
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 日程甘特图弹窗 -->
+  <div id="ganttModal" class="modal hidden">
+    <div class="modal-content" style="max-height: 90vh;">
+      <div class="modal-header gantt-modal-header">
+        <div class="flex items-center justify-between w-full gap-1" style="min-width: 0;">
+          <div class="flex items-center gap-1 flex-shrink-0" style="min-width: 0;">
+            <button class="w-6 h-6 rounded-md bg-ink-100 flex items-center justify-center hover:bg-ink-200 transition-colors flex-shrink-0" onclick="changeGanttDate(-1)">
+              <i data-lucide="chevron-left" class="w-3 h-3"></i>
+            </button>
+            <h3 class="text-xs font-semibold text-ink-900 whitespace-nowrap" id="ganttDateTitle" style="min-width: 0; overflow: hidden; text-overflow: ellipsis;">2026年7月7日</h3>
+            <button class="w-6 h-6 rounded-md bg-ink-100 flex items-center justify-center hover:bg-ink-200 transition-colors flex-shrink-0" onclick="changeGanttDate(1)">
+              <i data-lucide="chevron-right" class="w-3 h-3"></i>
+            </button>
+          </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button class="w-6 h-6 rounded-md bg-info-500 text-white flex items-center justify-center hover:bg-info-600 transition-colors" onclick="generateShareLink()" title="分享">
+              <i data-lucide="share-2" class="w-3 h-3"></i>
+            </button>
+            <button class="w-6 h-6 rounded-md bg-brand-500 text-white flex items-center justify-center hover:bg-brand-600 transition-colors" onclick="openScheduleEditModal()" title="添加">
+              <i data-lucide="plus" class="w-3 h-3"></i>
+            </button>
+            <button class="modal-close w-6 h-6 flex items-center justify-center" onclick="closeModal('ganttModal')" style="position: relative; right: 0;">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div>
+          <div id="ganttContainer">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 日程编辑弹窗 -->
+  <div id="scheduleEditModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="text-lg font-semibold text-ink-900" id="scheduleEditTitle">添加日程</h3>
+        <button class="modal-close" onclick="closeModal('scheduleEditModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="scheduleEditForm" onsubmit="saveSchedule(event)">
+          <input type="hidden" id="scheduleEditId" />
+          <input type="hidden" id="scheduleEditDate" />
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-ink-500 mb-1.5">日程标题</label>
+              <input type="text" id="scheduleEditName" class="w-full px-4 py-2.5 rounded-xl bg-ink-50 border-none text-sm text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all" placeholder="请输入日程标题" required />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-500 mb-1.5">隶属任务</label>
+              <select id="scheduleEditParentTodo" class="w-full px-4 py-2.5 rounded-xl bg-ink-50 border-none text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all">
+                <option value="">新建为独立待办</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">开始时间</label>
+                <div class="time-picker-wrapper">
+                  <i data-lucide="play" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                  <input type="time" id="scheduleEditStart" required />
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">结束时间</label>
+                <div class="time-picker-wrapper">
+                  <i data-lucide="square" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                  <input type="time" id="scheduleEditEnd" required />
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">紧急-重要</label>
+                <select id="scheduleEditQuadrant" class="w-full px-3 py-2 rounded-xl bg-ink-50 border-none text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all">
+                  <option value="urgent-important">紧急·重要</option>
+                  <option value="normal-important">不紧急·重要</option>
+                  <option value="urgent-normal">紧急·不重要</option>
+                  <option value="normal-normal" selected>不紧急·不重要</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">地点/会议链接</label>
+                <input type="text" id="scheduleEditLocation" class="w-full px-3 py-2 rounded-xl bg-ink-50 border-none text-sm text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all" placeholder="如：会议室 A301" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-500 mb-1.5">进度</label>
+              <div class="flex items-center gap-3">
+                <input type="range" id="scheduleEditProgress" min="0" max="100" value="0" class="flex-1 h-2 bg-ink-200 rounded-full appearance-none cursor-pointer accent-brand-500" />
+                <span class="text-sm font-medium text-ink-700 w-12 text-right" id="scheduleEditProgressText">0%</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-500 mb-1.5">参会人员</label>
+              <input type="text" id="scheduleEditParticipants" class="w-full px-3 py-2 rounded-xl bg-ink-50 border-none text-sm text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all" placeholder="如：张三、李四" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-500 mb-1.5">备注</label>
+              <textarea id="scheduleEditNote" rows="2" class="w-full px-3 py-2 rounded-xl bg-ink-50 border-none text-sm text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all resize-none" placeholder="添加备注..."></textarea>
+            </div>
+          </div>
+          <div class="mt-6 flex gap-3">
+            <button type="button" class="flex-1 py-2.5 rounded-xl bg-ink-100 text-ink-600 text-sm font-medium hover:bg-ink-200 transition-colors" onclick="closeModal('scheduleEditModal')">
+              取消
+            </button>
+            <button type="button" id="scheduleDeleteBtn" class="hidden flex-1 py-2.5 rounded-xl bg-danger-50 text-danger-600 text-sm font-medium hover:bg-danger-100 transition-colors" onclick="deleteScheduleFromEdit()">
+              删除
+            </button>
+            <button type="submit" class="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors">
+              保存
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 我的收藏弹窗 -->
+  <div id="favoritesModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="text-lg font-semibold text-ink-900">我的收藏</h3>
+        <button class="modal-close" onclick="closeModal('favoritesModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="space-y-3">
+          <div class="flex gap-3 p-3 rounded-xl bg-white border border-ink-100 cursor-pointer hover:bg-ink-50 transition-colors" onclick="openNewsById(2)">
+            <div class="w-16 h-12 rounded-lg bg-info-100 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="lightbulb" class="w-6 h-6 text-info-500"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-sm font-medium text-ink-900 truncate">情绪价值营销案例拆解：如何用共鸣感引爆品牌传播</h4>
+              <p class="text-xs text-ink-400 mt-1">营销智库 · 昨天</p>
+            </div>
+          </div>
+          <div class="flex gap-3 p-3 rounded-xl bg-white border border-ink-100 cursor-pointer hover:bg-ink-50 transition-colors" onclick="openNewsById(5)">
+            <div class="w-16 h-12 rounded-lg bg-success-100 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="play-circle" class="w-6 h-6 text-success-500"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-sm font-medium text-ink-900 truncate">竖屏短剧出海观察：东南亚市场成新增长点</h4>
+              <p class="text-xs text-ink-400 mt-1">出海笔记 · 4天前</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 浏览历史弹窗 -->
+  <div id="historyModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="text-lg font-semibold text-ink-900">浏览历史</h3>
+        <button class="modal-close" onclick="closeModal('historyModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="space-y-3">
+          <div class="flex gap-3 p-3 rounded-xl bg-white border border-ink-100 cursor-pointer hover:bg-ink-50 transition-colors" onclick="openNewsById(0)">
+            <div class="w-16 h-12 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="trending-up" class="w-6 h-6 text-brand-500"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-sm font-medium text-ink-900 truncate">2026年Q2内容生态报告发布，短剧市场持续增长超预期</h4>
+              <p class="text-xs text-ink-400 mt-1">行业前沿 · 3小时前</p>
+            </div>
+          </div>
+          <div class="flex gap-3 p-3 rounded-xl bg-white border border-ink-100 cursor-pointer hover:bg-ink-50 transition-colors" onclick="openNewsById(1)">
+            <div class="w-16 h-12 rounded-lg bg-success-100 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="film" class="w-6 h-6 text-success-500"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h4 class="text-sm font-medium text-ink-900 truncate">本周爆款短剧TOP10盘点，都市情感类领跑热度榜</h4>
+              <p class="text-xs text-ink-400 mt-1">短剧观察 · 5小时前</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据服务相关脚本 -->
+  <script src="./src/scripts/supabaseClient.js"></script>
+  <script src="./src/scripts/dataService.js"></script>
+  <script src="./src/scripts/app.js"></script>
 </body>
 </html>
