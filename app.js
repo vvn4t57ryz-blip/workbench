@@ -1578,38 +1578,17 @@
       ? window.SHARE_BASE_URL
       : window.location.origin + window.location.pathname;
 
-    // 方案1：数据存云端 + 短链服务缩短（最短）
-    try {
-      const id = await uploadShareData(shareData);
-      const urlWithId = baseUrl + '?s=' + id;
-      const shortUrl = await shortenUrl(urlWithId);
-      copyToClipboard(shortUrl, '短链接已复制到剪贴板！');
-      return;
-    } catch (e) {
-      console.warn('[分享] 方案1失败:', e.message);
-    }
-
-    // 方案2：只用短链服务缩短长链接
-    try {
-      const longUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
-      const shortUrl = await shortenUrl(longUrl);
-      copyToClipboard(shortUrl, '短链接已复制到剪贴板！');
-      return;
-    } catch (e) {
-      console.warn('[分享] 方案2失败:', e.message);
-    }
-
-    // 方案3：只用云端存储（无短链）
+    // 方案1：数据存云端，生成短链接
     try {
       const id = await uploadShareData(shareData);
       const shareUrl = baseUrl + '?s=' + id;
       copyToClipboard(shareUrl, '分享链接已复制到剪贴板！');
       return;
     } catch (e) {
-      console.warn('[分享] 方案3失败:', e.message);
+      console.warn('[分享] 云端存储失败:', e.message);
     }
 
-    // 方案4：降级，压缩数据放 URL
+    // 方案2：降级，压缩数据放 URL
     try {
       const compressedUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify({
         t: shareData.todos.map(t => ({ n: t.name, d: t.deadline, q: t.quadrant, p: t.progress, c: t.completed ? 1 : 0 })),
@@ -1746,14 +1725,42 @@
   }
 
   function copyToClipboard(text, successMessage) {
+    // 现代方法：使用 Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          showToast(successMessage, 'success');
+        })
+        .catch(() => {
+          fallbackCopyToClipboard(text, successMessage);
+        });
+      return;
+    }
+
+    // 降级方法
+    fallbackCopyToClipboard(text, successMessage);
+  }
+
+  function fallbackCopyToClipboard(text, successMessage) {
     const textarea = document.createElement('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';
-    textarea.style.top = '-1000px';
-    textarea.style.left = '-1000px';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
     document.body.appendChild(textarea);
-    textarea.select();
-    textarea.setSelectionRange(0, text.length);
+
+    if (navigator.userAgent.match(/ipad|iphone/i)) {
+      const range = document.createRange();
+      range.selectNodeContents(textarea);
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+        textarea.setSelectionRange(0, 999999);
+      }
+    } else {
+      textarea.select();
+    }
 
     try {
       const successful = document.execCommand('copy');
