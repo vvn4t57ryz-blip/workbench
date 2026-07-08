@@ -161,6 +161,10 @@
     updateWarningBadge();
     renderTodoList();
     renderTimeline();
+    
+    if (!document.getElementById('warningModal').classList.contains('hidden')) {
+      renderWarningQuadrants();
+    }
   }
 
   async function saveSchedules() {
@@ -1221,9 +1225,7 @@
     renderGanttChart();
     renderTimeline();
     
-    if (!document.getElementById('warningModal').classList.contains('hidden')) {
-      renderWarningQuadrants();
-    }
+    renderWarningQuadrants();
     
     closeModal('scheduleEditModal');
     openModal('ganttModal');
@@ -1276,13 +1278,20 @@
     if (relatedSchedules.length === 0) return;
     
     const avgProgress = Math.round(relatedSchedules.reduce((sum, s) => sum + (s.progress || 0), 0) / relatedSchedules.length);
+    const allCompleted = relatedSchedules.every(s => s.status === 'completed');
     const todo = todos.find(t => t.id === todoId);
+    
     if (todo) {
       todo.progress = avgProgress;
-      if (avgProgress >= 100 && relatedSchedules.every(s => s.status === 'completed')) {
+      
+      if (avgProgress >= 100 && allCompleted) {
         todo.completed = true;
-      } else if (avgProgress < 100) {
+      } else {
         todo.completed = false;
+      }
+      
+      if (avgProgress === 0) {
+        todo.progress = 0;
       }
     }
   }
