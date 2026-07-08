@@ -375,9 +375,14 @@
     
     const today = now.toISOString().split('T')[0];
     
+    const warningTodoIds = new Set(warnings.map(w => w.id));
+    
     schedules.forEach(schedule => {
       if (schedule.status === 'completed' || schedule.status === 'cancelled') return;
-      if (schedule.parentTodoId) return;
+      
+      if (schedule.parentTodoId && warningTodoIds.has(schedule.parentTodoId)) {
+        return;
+      }
       
       const scheduleDate = schedule.date;
       if (!scheduleDate) return;
