@@ -353,7 +353,7 @@
         }
       }
       
-      if (progress < 30 && hoursToDeadline < 168) {
+      if (progress < 80 && hoursToDeadline < 168) {
         warnings.push({
           type: 'todo',
           id: todo.id,
@@ -389,7 +389,7 @@
         isImportant = progress < 30;
       }
       
-      if (progress < 50 && hoursUntil < 24) {
+      if (progress < 80 && hoursUntil < 24) {
         warnings.push({
           type: 'schedule',
           id: schedule.id,
@@ -1215,7 +1215,11 @@
     updateTodoProgressFromSchedules(schedule.parentTodoId);
     await saveSchedules();
     await saveTodos();
+    updateStats();
     updateWarningBadge();
+    renderTodoList();
+    renderGanttChart();
+    renderTimeline();
     
     if (!document.getElementById('warningModal').classList.contains('hidden')) {
       renderWarningQuadrants();
@@ -1253,6 +1257,14 @@
       
       updateStats();
       updateWarningBadge();
+      renderTodoList();
+      renderGanttChart();
+      renderTimeline();
+      
+      if (!document.getElementById('warningModal').classList.contains('hidden')) {
+        renderWarningQuadrants();
+      }
+      
       closeModal('scheduleEditModal');
       openModal('ganttModal');
     }
