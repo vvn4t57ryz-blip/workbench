@@ -1590,8 +1590,6 @@
   // ========== 分享链接功能 ==========
 
   async function generateShareLink() {
-    showToast('正在生成分享链接...', 'info');
-
     const today = new Date().toISOString().split('T')[0];
     const todaySchedules = schedules.filter(s => s.date === today);
 
@@ -1614,7 +1612,100 @@
       ? window.SHARE_BASE_URL
       : window.location.origin + window.location.pathname;
 
-    // 方案1：上传到jsonblob（支持CORS），获取短ID
+    // 1. 立即生成长链接（同步）
+    const longUrl = baseUrl + '?share=' + compressShareData(shareData);
+
+    // 2. 立即复制到剪贴板（在用户点击事件上下文中，execCommand同步执行）
+    syncCopyToClipboard(longUrl);
+
+    // 3. 显示分享弹窗
+    showShareModal(longUrl, '链接已复制到剪贴板');
+
+    // 4. 后台尝试生成短链接
+    try {
+      const shortUrl = await tryShortenUrl(longUrl, shareData, baseUrl);
+      if (shortUrl && shortUrl !== longUrl) {
+        syncCopyToClipboard(shortUrl);
+        showShareModal(shortUrl, '短链接已复制到剪贴板');
+        showToast('短链接已生成并复制', 'success');
+      }
+    } catch (e) {
+      console.warn('[分享] 短链接生成失败，使用长链接:', e.message);
+    }
+  }
+
+  // 同步复制 - 在用户手势上下文中立即执行
+  function syncCopyToClipboard(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, text.length);
+
+    let success = false;
+    try {
+      success = document.execCommand('copy');
+    } catch (e) {
+      console.warn('[复制] execCommand失败:', e.message);
+    }
+    document.body.removeChild(textarea);
+
+    if (!success && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+
+    return success;
+  }
+
+  // 显示分享弹窗
+  function showShareModal(url, message) {
+    const existing = document.getElementById('shareLinkModal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'shareLinkModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:420px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.15);">' +
+      '<div style="text-align:center;margin-bottom:16px;">' +
+      '<div style="width:48px;height:48px;border-radius:50%;background:#EFFBF4;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">' +
+      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5BB88C" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
+      '</div>' +
+      '<div style="font-size:16px;font-weight:600;color:#2D2319;">' + message + '</div>' +
+      '</div>' +
+      '<div style="background:#FAF8F6;border-radius:12px;padding:12px;margin-bottom:16px;">' +
+      '<input type="text" id="shareLinkInput" value="' + url.replace(/"/g, '&quot;') + '" readonly ' +
+      'style="width:100%;border:none;background:transparent;font-size:13px;color:#6B5B4D;outline:none;font-family:monospace;" ' +
+      'onclick="this.select()" />' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+      '<button id="shareCopyBtn" style="flex:1;padding:10px;border-radius:10px;border:none;background:#E8915A;color:#fff;font-size:14px;font-weight:500;cursor:pointer;">复制链接</button>' +
+      '<button id="shareCloseBtn" style="flex:1;padding:10px;border-radius:10px;border:none;background:#F0EBE6;color:#6B5B4D;font-size:14px;font-weight:500;cursor:pointer;">关闭</button>' +
+      '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    const input = document.getElementById('shareLinkInput');
+    if (input) setTimeout(() => input.select(), 100);
+
+    document.getElementById('shareCopyBtn').onclick = function() {
+      syncCopyToClipboard(url);
+      showToast('已复制到剪贴板', 'success');
+    };
+
+    document.getElementById('shareCloseBtn').onclick = function() {
+      modal.remove();
+    };
+
+    modal.onclick = function(e) {
+      if (e.target === modal) modal.remove();
+    };
+  }
+
+  // 尝试生成短链接
+  async function tryShortenUrl(longUrl, shareData, baseUrl) {
+    // 1. 上传数据到jsonblob，获取短ID
     let cloudId = null;
     try {
       cloudId = await uploadToJsonblob(shareData);
@@ -1623,47 +1714,45 @@
       console.warn('[分享] jsonblob失败:', e.message);
     }
 
-    let shareUrl;
+    let targetUrl = longUrl;
     if (cloudId) {
-      shareUrl = baseUrl + '?s=' + cloudId;
-      console.log('[分享] ID链接:', shareUrl);
+      targetUrl = baseUrl + '?s=' + cloudId;
+    }
 
-      // 方案2：用spoo.me缩短（支持CORS）
+    // 2. 用短链服务缩短
+    const services = [
+      'https://is.gd/create.php?format=simple&url=',
+      'https://v.gd/create.php?format=simple&url=',
+      'https://tinyurl.com/api-create.php?url='
+    ];
+
+    for (const svc of services) {
       try {
-        const shortUrl = await shortenWithSpoo(shareUrl);
-        console.log('[分享] 短链:', shortUrl);
-        await copyToClipboard(shortUrl, '分享链接已复制到剪贴板！');
-        return;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(svc + encodeURIComponent(targetUrl), { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!res.ok) continue;
+        const text = await res.text();
+        if (text && text.trim().startsWith('http')) {
+          console.log('[短链] 成功:', text.trim());
+          return text.trim();
+        }
       } catch (e) {
-        console.warn('[分享] spoo.me失败:', e.message);
+        console.warn('[短链] 失败:', e.message);
       }
-
-      // 短链失败，但ID链接已经短很多
-      await copyToClipboard(shareUrl, '分享链接已复制到剪贴板！');
-      return;
     }
 
-    // 方案3：降级 - 压缩数据放URL
-    shareUrl = baseUrl + '?share=' + compressShareData(shareData);
-    console.warn('[分享] 使用压缩长链接');
+    // 3. 短链服务都失败，返回jsonblob ID链接（如果有的话）
+    if (cloudId) return targetUrl;
 
-    // 尝试缩短
-    try {
-      const shortUrl = await shortenWithSpoo(shareUrl);
-      await copyToClipboard(shortUrl, '分享链接已复制到剪贴板！');
-      return;
-    } catch (e) {
-      console.warn('[分享] 短链失败:', e.message);
-    }
-
-    await copyToClipboard(shareUrl, '分享链接已复制（链接较长）');
+    throw new Error('短链服务不可用');
   }
 
-  // jsonblob.com - 支持CORS
+  // 上传数据到jsonblob
   async function uploadToJsonblob(data) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
+    const timeout = setTimeout(() => controller.abort(), 10000);
     const res = await fetch('https://jsonblob.com/api/jsonBlob', {
       method: 'POST',
       mode: 'cors',
@@ -1672,56 +1761,27 @@
       signal: controller.signal
     });
     clearTimeout(timeout);
-
-    if (!res.ok) throw new Error('jsonblob返回 ' + res.status);
-
-    // ID在Location header中
+    if (!res.ok) throw new Error('jsonblob ' + res.status);
     const loc = res.headers.get('Location') || res.headers.get('location');
-    if (loc) {
-      return loc.split('/').pop();
-    }
-
-    // 某些浏览器因CORS无法读取header，尝试从response body获取
-    try {
-      const text = await res.text();
-      const match = text.match(/(\d{10,})/);
-      if (match) return match[1];
-    } catch (e) {}
-
-    throw new Error('无法获取jsonblob ID');
+    if (loc) return loc.split('/').pop();
+    throw new Error('无法获取ID');
   }
 
-  // spoo.me - 支持CORS的短链接服务
-  async function shortenWithSpoo(longUrl) {
+  // 从jsonblob加载数据
+  async function loadFromJsonblob(id) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-
-    const formData = new URLSearchParams();
-    formData.append('url', longUrl);
-
-    const res = await fetch('https://spoo.me/', {
-      method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
-      body: formData.toString(),
+    const res = await fetch('https://jsonblob.com/api/jsonBlob/' + id, {
+      method: 'GET', mode: 'cors',
+      headers: { 'Accept': 'application/json' },
       signal: controller.signal
     });
     clearTimeout(timeout);
-
-    if (!res.ok) throw new Error('spoo.me返回 ' + res.status);
-
-    const data = await res.json();
-    if (data.short_url || data.short) {
-      return data.short_url || data.short;
-    }
-
-    throw new Error('spoo.me未返回短链接');
+    if (!res.ok) throw new Error('jsonblob ' + res.status);
+    return await res.json();
   }
 
-  // 压缩分享数据 - 极简格式
+  // 压缩分享数据
   function compressShareData(shareData) {
     const mini = shareData.schedules.map(s => {
       return s.name + '|' + s.start + '|' + s.end + '|' + (s.quadrant || '') + '|' + (s.status || '');
@@ -1738,23 +1798,12 @@
       const date = parts[0];
       const scheduleStr = parts[1] || '';
       const generatedAt = parts[2] || '';
-
       const schedules = scheduleStr.split('~').filter(s => s).map(s => {
         const fields = s.split('|');
-        return {
-          name: fields[0] || '',
-          start: fields[1] || '',
-          end: fields[2] || '',
-          quadrant: fields[3] || 'normal-normal',
-          status: fields[4] || 'pending',
-          location: '',
-          participants: ''
-        };
+        return { name: fields[0] || '', start: fields[1] || '', end: fields[2] || '', quadrant: fields[3] || 'normal-normal', status: fields[4] || 'pending', location: '', participants: '' };
       });
-
       return { date, schedules, generatedAt };
     } catch (e) {
-      console.error('[分享] 解压失败:', e);
       return null;
     }
   }
