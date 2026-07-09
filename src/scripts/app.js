@@ -1603,13 +1603,9 @@
     const shareData = {
       date: today,
       schedules: todaySchedules.map(s => ({
-        name: s.name,
-        start: s.start,
-        end: s.end,
-        quadrant: s.quadrant,
-        status: s.status,
-        location: s.location,
-        participants: s.participants
+        name: s.name, start: s.start, end: s.end,
+        quadrant: s.quadrant, status: s.status,
+        location: s.location || '', participants: s.participants || ''
       })),
       generatedAt: new Date().toISOString()
     };
@@ -1618,183 +1614,174 @@
       ? window.SHARE_BASE_URL
       : window.location.origin + window.location.pathname;
 
-    let longUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
-
+    // 步骤1：上传数据到云端，获取短ID
+    let cloudId = null;
     try {
-      const shortUrl = await shortenUrl(longUrl);
-      await copyToClipboard(shortUrl, '分享链接已复制到剪贴板！');
+      cloudId = await uploadShareData(shareData);
     } catch (e) {
-      console.warn('[分享] 短链接生成失败:', e.message);
-      await copyToClipboard(longUrl, '分享链接已复制到剪贴板！');
+      console.warn('[分享] 云端存储失败:', e.message);
     }
-  }
 
-  async function shortenUrl(longUrl) {
-    const services = [
-      {
-        name: 'tinyurl',
-        url: 'https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl),
-        parse: (text) => text.trim()
-      },
-      {
-        name: 'isgd',
-        url: 'https://is.gd/create.php?format=simple&url=' + encodeURIComponent(longUrl),
-        parse: (text) => text.trim()
-      },
-      {
-        name: 'clckru',
-        url: 'https://clck.ru/--?url=' + encodeURIComponent(longUrl),
-        parse: (text) => text.trim()
-      }
-    ];
-
-    for (const svc of services) {
+    // 步骤2：构造URL
+    let shareUrl;
+    if (cloudId) {
+      // 云端存储成功，使用短ID格式
+      shareUrl = baseUrl + '?s=' + cloudId;
+      // 步骤3：尝试用短链接服务进一步缩短
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-
-        const res = await fetch(svc.url, {
-          method: 'GET',
-          signal: controller.signal
-        });
-        clearTimeout(timeout);
-
-        if (!res.ok) continue;
-
-        const text = await res.text();
-        if (text && text.startsWith('http')) {
-          return text.trim();
-        }
-      } catch (err) {
-        console.warn('[短链接] ' + svc.name + ' 失败:', err.message);
+        const shortUrl = await shortenUrl(shareUrl);
+        await copyToClipboard(shortUrl, '分享链接已复制到剪贴板！');
+        return;
+      } catch (e) {
+        console.warn('[分享] 短链接服务不可用，使用ID链接:', e.message);
       }
+    } else {
+      // 云端存储失败，使用长链接
+      shareUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
     }
 
-    throw new Error('所有短链接服务都失败了');
+    await copyToClipboard(shareUrl, '分享链接已复制到剪贴板！');
   }
 
   async function uploadShareData(data) {
-    const services = [
-      {
-        name: 'jsonbin',
+    // npoint.io 返回短ID（如 abc123）
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch('https://api.npoint.io/', {
         method: 'POST',
-        url: 'https://jsonblob.com/api/jsonBlob',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(data),
-        extractId: (res) => {
-          const loc = res.headers.get('Location') || res.headers.get('location');
-          if (loc) return loc.split('/').pop();
-          return null;
-        }
-      },
-      {
-        name: 'npoint',
-        method: 'POST',
-        url: 'https://api.npoint.io/',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-        extractId: (res, json) => json && json.id
-      }
-    ];
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
 
-    for (const svc of services) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-
-        const res = await fetch(svc.url, {
-          method: 'POST',
-          headers: svc.headers,
-          body: svc.body,
-          signal: controller.signal
-        });
-        clearTimeout(timeout);
-
-        if (!res.ok) continue;
-
-        const id = svc.extractId(res, null);
-        if (id) return id;
-
+      if (res.ok) {
         const json = await res.json();
-        const jsonId = svc.extractId(res, json);
-        if (jsonId) return jsonId;
-      } catch (e) {
-        console.warn('[分享] ' + svc.name + ' 不可用:', e.message);
+        if (json && json.id) {
+          console.log('[分享] npoint ID:', json.id);
+          return json.id;
+        }
       }
+    } catch (e) {
+      console.warn('[分享] npoint 不可用:', e.message);
     }
-    throw new Error('JSON存储服务均不可用');
+
+    // 降级：jsonblob
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch('https://jsonblob.com/api/jsonBlob', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const loc = res.headers.get('Location') || res.headers.get('location');
+        if (loc) {
+          const id = loc.split('/').pop();
+          console.log('[分享] jsonblob ID:', id);
+          return id;
+        }
+      }
+    } catch (e) {
+      console.warn('[分享] jsonblob 不可用:', e.message);
+    }
+
+    throw new Error('所有云存储服务均不可用');
   }
 
   async function loadSharedDataFromCloud(id) {
-    const services = [
-      { name: 'jsonbin', url: 'https://jsonblob.com/api/jsonBlob/' + id },
-      { name: 'npoint', url: 'https://api.npoint.io/' + id }
-    ];
+    // 尝试 npoint
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
 
-    for (const svc of services) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch('https://api.npoint.io/' + id, { signal: controller.signal });
+      clearTimeout(timeout);
 
-        const res = await fetch(svc.url, { signal: controller.signal });
-        clearTimeout(timeout);
-
-        if (!res.ok) continue;
-
+      if (res.ok) {
         const data = await res.json();
-        if (data && (data.todos || data.schedules || data.t || data.s)) {
+        if (data && (data.schedules || data.todos || data.s || data.t)) {
           return data;
         }
-      } catch (e) {
-        console.warn('[分享] 从 ' + svc.name + ' 加载失败:', e.message);
       }
+    } catch (e) {
+      console.warn('[分享] npoint 加载失败:', e.message);
     }
+
+    // 尝试 jsonblob
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch('https://jsonblob.com/api/jsonBlob/' + id, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (data.schedules || data.todos || data.s || data.t)) {
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn('[分享] jsonblob 加载失败:', e.message);
+    }
+
     return null;
   }
 
-  function buildLongShareUrl(shareData) {
-    const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
-    return window.location.origin + window.location.pathname + '?share=' + encodedData;
-  }
-
-  function buildCompressedShareUrl(shareData) {
-    const minimal = {
-      t: shareData.todos.map(t => ({ n: t.name, d: t.deadline, q: t.quadrant, p: t.progress, c: t.completed ? 1 : 0 })),
-      s: shareData.schedules.map(s => ({ n: s.name, dt: s.date, st: s.start, et: s.end, q: s.quadrant, p: s.progress, st2: s.status }))
-    };
-    const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(minimal))));
-    return window.location.origin + window.location.pathname + '?share=' + encodedData;
-  }
-
   async function shortenUrl(longUrl) {
-    const services = [
-      {
-        name: 'isgd',
-        url: 'https://is.gd/create.php?format=json&url=' + encodeURIComponent(longUrl),
-        extract: (data) => data.shorturl
-      },
-      {
-        name: 'shrtco',
-        url: 'https://api.shrtco.de/v2/shorten?url=' + encodeURIComponent(longUrl),
-        extract: (data) => data.result && data.result.short_link
-      }
-    ];
+    // is.gd 支持CORS，返回纯文本短链接
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
 
-    for (const svc of services) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch(svc.url, { signal: controller.signal });
-        clearTimeout(timeout);
-        if (!res.ok) continue;
-        const data = await res.json();
-        const short = svc.extract(data);
-        if (short) return short;
-      } catch (e) {
-        console.warn('[短链] ' + svc.name + ' 不可用:', e.message);
+      const res = await fetch('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(longUrl), {
+        method: 'GET',
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.trim().startsWith('http')) {
+          console.log('[短链] is.gd 成功:', text.trim());
+          return text.trim();
+        }
       }
+    } catch (e) {
+      console.warn('[短链] is.gd 失败:', e.message);
     }
-    throw new Error('短链服务均不可用');
+
+    // 降级：tinyurl
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl), {
+        method: 'GET',
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.trim().startsWith('http')) {
+          console.log('[短链] tinyurl 成功:', text.trim());
+          return text.trim();
+        }
+      }
+    } catch (e) {
+      console.warn('[短链] tinyurl 失败:', e.message);
+    }
+
+    throw new Error('短链接服务均不可用');
   }
 
   async function copyToClipboard(text, successMessage) {
@@ -2004,7 +1991,7 @@
 
   function showShareView(shareData) {
     const shareView = document.getElementById('shareView');
-    const mainContent = document.querySelector('.main-content');
+    const mainContent = document.getElementById('mainContent');
     const sidebar = document.getElementById('sidebar');
     const tabBar = document.querySelector('.tab-bar');
 
