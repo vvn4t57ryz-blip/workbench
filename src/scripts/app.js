@@ -1589,43 +1589,6 @@
 
   // ========== 分享链接功能 ==========
 
-  // CORS代理列表，解决跨域问题
-  const CORS_PROXIES = [
-    'https://corsproxy.io/?url=',
-    'https://api.allorigins.win/raw?url=',
-    ''
-  ];
-
-  async function fetchWithCors(url, options = {}) {
-    // 先直接请求（某些API已支持CORS）
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(url, { ...options, signal: controller.signal });
-      clearTimeout(timeout);
-      if (res.ok) return res;
-    } catch (e) {
-      console.warn('[CORS] 直接请求失败，尝试代理:', e.message);
-    }
-
-    // 通过CORS代理请求
-    for (const proxy of CORS_PROXIES) {
-      if (!proxy) continue;
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
-        const proxyUrl = proxy + encodeURIComponent(url);
-        const res = await fetch(proxyUrl, { ...options, signal: controller.signal });
-        clearTimeout(timeout);
-        if (res.ok) return res;
-      } catch (e) {
-        console.warn('[CORS] 代理 ' + proxy + ' 失败:', e.message);
-      }
-    }
-
-    throw new Error('所有请求方式均失败');
-  }
-
   async function generateShareLink() {
     showToast('正在生成分享链接...', 'info');
 
@@ -1651,139 +1614,149 @@
       ? window.SHARE_BASE_URL
       : window.location.origin + window.location.pathname;
 
-    // 方案1：上传数据到云端，生成短ID链接，再用短链服务缩短
+    // 方案1：上传到jsonblob（支持CORS），获取短ID
     let cloudId = null;
     try {
-      cloudId = await uploadShareData(shareData);
+      cloudId = await uploadToJsonblob(shareData);
+      console.log('[分享] jsonblob ID:', cloudId);
     } catch (e) {
-      console.warn('[分享] 云端存储失败:', e.message);
+      console.warn('[分享] jsonblob失败:', e.message);
     }
 
     let shareUrl;
     if (cloudId) {
-      // 云端存储成功，使用短ID格式
       shareUrl = baseUrl + '?s=' + cloudId;
-      console.log('[分享] 云端ID链接:', shareUrl);
+      console.log('[分享] ID链接:', shareUrl);
 
-      // 再用短链服务缩短
+      // 方案2：用spoo.me缩短（支持CORS）
       try {
-        const shortUrl = await shortenUrl(shareUrl);
+        const shortUrl = await shortenWithSpoo(shareUrl);
+        console.log('[分享] 短链:', shortUrl);
         await copyToClipboard(shortUrl, '分享链接已复制到剪贴板！');
         return;
       } catch (e) {
-        console.warn('[分享] 短链服务不可用:', e.message);
+        console.warn('[分享] spoo.me失败:', e.message);
       }
 
-      // 短链服务失败，但云端ID链接已经比长链接短很多
+      // 短链失败，但ID链接已经短很多
       await copyToClipboard(shareUrl, '分享链接已复制到剪贴板！');
       return;
     }
 
-    // 方案2：降级，长链接
-    shareUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
-    console.warn('[分享] 使用长链接降级方案');
+    // 方案3：降级 - 压缩数据放URL
+    shareUrl = baseUrl + '?share=' + compressShareData(shareData);
+    console.warn('[分享] 使用压缩长链接');
 
-    // 尝试缩短长链接
+    // 尝试缩短
     try {
-      const shortUrl = await shortenUrl(shareUrl);
+      const shortUrl = await shortenWithSpoo(shareUrl);
       await copyToClipboard(shortUrl, '分享链接已复制到剪贴板！');
       return;
     } catch (e) {
-      console.warn('[分享] 短链服务不可用:', e.message);
+      console.warn('[分享] 短链失败:', e.message);
     }
 
     await copyToClipboard(shareUrl, '分享链接已复制（链接较长）');
   }
 
-  async function uploadShareData(data) {
-    // npoint.io - 返回短ID
-    try {
-      const res = await fetchWithCors('https://api.npoint.io/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      const json = await res.json();
-      if (json && json.id) {
-        console.log('[分享] npoint ID:', json.id);
-        return json.id;
-      }
-    } catch (e) {
-      console.warn('[分享] npoint 不可用:', e.message);
+  // jsonblob.com - 支持CORS
+  async function uploadToJsonblob(data) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const res = await fetch('https://jsonblob.com/api/jsonBlob', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(data),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) throw new Error('jsonblob返回 ' + res.status);
+
+    // ID在Location header中
+    const loc = res.headers.get('Location') || res.headers.get('location');
+    if (loc) {
+      return loc.split('/').pop();
     }
 
-    // 降级：jsonblob
+    // 某些浏览器因CORS无法读取header，尝试从response body获取
     try {
-      const res = await fetchWithCors('https://jsonblob.com/api/jsonBlob', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      const loc = res.headers.get('Location') || res.headers.get('location');
-      if (loc) {
-        const id = loc.split('/').pop();
-        console.log('[分享] jsonblob ID:', id);
-        return id;
-      }
-    } catch (e) {
-      console.warn('[分享] jsonblob 不可用:', e.message);
-    }
+      const text = await res.text();
+      const match = text.match(/(\d{10,})/);
+      if (match) return match[1];
+    } catch (e) {}
 
-    throw new Error('所有云存储服务均不可用');
+    throw new Error('无法获取jsonblob ID');
   }
 
-  async function loadSharedDataFromCloud(id) {
-    // 尝试 npoint
-    try {
-      const res = await fetchWithCors('https://api.npoint.io/' + id);
-      const data = await res.json();
-      if (data && (data.schedules || data.todos || data.s || data.t)) {
-        return data;
-      }
-    } catch (e) {
-      console.warn('[分享] npoint 加载失败:', e.message);
+  // spoo.me - 支持CORS的短链接服务
+  async function shortenWithSpoo(longUrl) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const formData = new URLSearchParams();
+    formData.append('url', longUrl);
+
+    const res = await fetch('https://spoo.me/', {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      body: formData.toString(),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) throw new Error('spoo.me返回 ' + res.status);
+
+    const data = await res.json();
+    if (data.short_url || data.short) {
+      return data.short_url || data.short;
     }
 
-    // 尝试 jsonblob
-    try {
-      const res = await fetchWithCors('https://jsonblob.com/api/jsonBlob/' + id);
-      const data = await res.json();
-      if (data && (data.schedules || data.todos || data.s || data.t)) {
-        return data;
-      }
-    } catch (e) {
-      console.warn('[分享] jsonblob 加载失败:', e.message);
-    }
-
-    return null;
+    throw new Error('spoo.me未返回短链接');
   }
 
-  async function shortenUrl(longUrl) {
-    // is.gd - 支持CORS，返回纯文本
-    try {
-      const res = await fetchWithCors('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(longUrl));
-      const text = await res.text();
-      if (text && text.trim().startsWith('http')) {
-        console.log('[短链] is.gd 成功:', text.trim());
-        return text.trim();
-      }
-    } catch (e) {
-      console.warn('[短链] is.gd 失败:', e.message);
-    }
+  // 压缩分享数据 - 极简格式
+  function compressShareData(shareData) {
+    const mini = shareData.schedules.map(s => {
+      return s.name + '|' + s.start + '|' + s.end + '|' + (s.quadrant || '') + '|' + (s.status || '');
+    }).join('~');
+    const payload = shareData.date + '`' + mini + '`' + shareData.generatedAt;
+    return btoa(unescape(encodeURIComponent(payload)));
+  }
 
-    // tinyurl
+  // 解压缩分享数据
+  function decompressShareData(encoded) {
     try {
-      const res = await fetchWithCors('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl));
-      const text = await res.text();
-      if (text && text.trim().startsWith('http')) {
-        console.log('[短链] tinyurl 成功:', text.trim());
-        return text.trim();
-      }
-    } catch (e) {
-      console.warn('[短链] tinyurl 失败:', e.message);
-    }
+      const payload = decodeURIComponent(escape(atob(encoded)));
+      const parts = payload.split('`');
+      const date = parts[0];
+      const scheduleStr = parts[1] || '';
+      const generatedAt = parts[2] || '';
 
-    throw new Error('短链接服务均不可用');
+      const schedules = scheduleStr.split('~').filter(s => s).map(s => {
+        const fields = s.split('|');
+        return {
+          name: fields[0] || '',
+          start: fields[1] || '',
+          end: fields[2] || '',
+          quadrant: fields[3] || 'normal-normal',
+          status: fields[4] || 'pending',
+          location: '',
+          participants: ''
+        };
+      });
+
+      return { date, schedules, generatedAt };
+    } catch (e) {
+      console.error('[分享] 解压失败:', e);
+      return null;
+    }
   }
 
   async function copyToClipboard(text, successMessage) {
@@ -1922,33 +1895,67 @@
     const shortId = urlParams.get('s');
     const shareData = urlParams.get('share');
 
-    // 短链接模式：从云端 JSON 存储加载数据
+    // 短ID模式：从jsonblob加载数据
     if (shortId) {
       try {
-        const data = await loadSharedDataFromCloud(shortId);
+        showToast('正在加载分享数据...', 'info');
+        const data = await loadFromJsonblob(shortId);
         if (data) {
-          applySharedData(data);
-          showToast('已加载共享数据！', 'success');
+          showShareView(data);
           return;
         }
       } catch (e) {
-        console.error('Failed to load short link:', e);
+        console.error('[分享] 加载失败:', e);
       }
       showToast('链接已过期或无法加载', 'error');
       return;
     }
 
-    // 长链接模式（降级）
+    // 压缩链接模式
     if (shareData) {
       try {
+        // 先尝试解压新格式
+        const data = decompressShareData(shareData);
+        if (data) {
+          showShareView(data);
+          return;
+        }
+
+        // 兼容旧格式（JSON base64）
         const decodedData = JSON.parse(decodeURIComponent(escape(atob(shareData))));
-        applySharedData(decodedData);
-        showToast('已加载共享数据！', 'success');
+        if (decodedData.date && decodedData.schedules) {
+          showShareView(decodedData);
+        } else {
+          applySharedData(decodedData);
+        }
       } catch (e) {
-        console.error('Failed to load shared data:', e);
-        showToast('加载共享数据失败', 'error');
+        console.error('[分享] 解析失败:', e);
+        showToast('加载分享数据失败', 'error');
       }
     }
+  }
+
+  // 从jsonblob加载数据
+  async function loadFromJsonblob(id) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const res = await fetch('https://jsonblob.com/api/jsonBlob/' + id, {
+      method: 'GET',
+      mode: 'cors',
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) throw new Error('jsonblob返回 ' + res.status);
+
+    const data = await res.json();
+    if (data && data.schedules) {
+      return data;
+    }
+
+    return null;
   }
 
   function applySharedData(decodedData) {
