@@ -1592,9 +1592,25 @@
   async function generateShareLink() {
     showToast('正在生成分享链接...', 'info');
 
+    const today = new Date().toISOString().split('T')[0];
+    const todaySchedules = schedules.filter(s => s.date === today);
+
+    if (todaySchedules.length === 0) {
+      showToast('今天没有日程安排', 'info');
+      return;
+    }
+
     const shareData = {
-      todos: todos,
-      schedules: schedules,
+      date: today,
+      schedules: todaySchedules.map(s => ({
+        name: s.name,
+        start: s.start,
+        end: s.end,
+        quadrant: s.quadrant,
+        status: s.status,
+        location: s.location,
+        participants: s.participants
+      })),
       generatedAt: new Date().toISOString()
     };
 
@@ -1602,26 +1618,59 @@
       ? window.SHARE_BASE_URL
       : window.location.origin + window.location.pathname;
 
-    // 方案1：数据存云端，生成短链接
+    let longUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
+
     try {
-      const id = await uploadShareData(shareData);
-      const shareUrl = baseUrl + '?s=' + id;
-      copyToClipboard(shareUrl, '分享链接已复制到剪贴板！');
-      return;
+      const shortUrl = await shortenUrl(longUrl);
+      await copyToClipboard(shortUrl, '分享链接已复制到剪贴板！');
     } catch (e) {
-      console.warn('[分享] 云端存储失败:', e.message);
+      console.warn('[分享] 短链接生成失败:', e.message);
+      await copyToClipboard(longUrl, '分享链接已复制到剪贴板！');
+    }
+  }
+
+  async function shortenUrl(longUrl) {
+    const services = [
+      {
+        name: 'tinyurl',
+        url: 'https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl),
+        parse: (text) => text.trim()
+      },
+      {
+        name: 'isgd',
+        url: 'https://is.gd/create.php?format=simple&url=' + encodeURIComponent(longUrl),
+        parse: (text) => text.trim()
+      },
+      {
+        name: 'clckru',
+        url: 'https://clck.ru/--?url=' + encodeURIComponent(longUrl),
+        parse: (text) => text.trim()
+      }
+    ];
+
+    for (const svc of services) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
+        const res = await fetch(svc.url, {
+          method: 'GET',
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+
+        if (!res.ok) continue;
+
+        const text = await res.text();
+        if (text && text.startsWith('http')) {
+          return text.trim();
+        }
+      } catch (err) {
+        console.warn('[短链接] ' + svc.name + ' 失败:', err.message);
+      }
     }
 
-    // 方案2：降级，压缩数据放 URL
-    try {
-      const compressedUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify({
-        t: shareData.todos.map(t => ({ n: t.name, d: t.deadline, q: t.quadrant, p: t.progress, c: t.completed ? 1 : 0 })),
-        s: shareData.schedules.map(s => ({ n: s.name, dt: s.date, st: s.start, et: s.end, q: s.quadrant, p: s.progress, st2: s.status }))
-      }))));
-      copyToClipboard(compressedUrl, '分享链接已复制（链接较长，建议通过微信发送）');
-    } catch (e2) {
-      showToast('生成分享链接失败', 'error');
-    }
+    throw new Error('所有短链接服务都失败了');
   }
 
   async function uploadShareData(data) {
@@ -1748,83 +1797,109 @@
     throw new Error('短链服务均不可用');
   }
 
-  function copyToClipboard(text, successMessage) {
-    const tryCopy = async () => {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        try {
-          await navigator.clipboard.writeText(text);
-          showToast(successMessage, 'success');
-          return true;
-        } catch (err) {
-          console.warn('[复制] Clipboard API 失败:', err.message);
-        }
-      }
+  async function copyToClipboard(text, successMessage) {
+    if (!text) {
+      showToast('没有可复制的内容', 'error');
+      return false;
+    }
 
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.left = '-9999px';
-      textarea.style.top = '-9999px';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-
+    if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
-        textarea.focus();
-        textarea.select();
-        textarea.setSelectionRange(0, text.length);
-
-        const successful = document.execCommand('copy');
-        if (successful) {
-          showToast(successMessage, 'success');
-          return true;
-        }
+        await navigator.clipboard.writeText(text);
+        showToast(successMessage, 'success');
+        return true;
       } catch (err) {
-        console.warn('[复制] execCommand 失败:', err.message);
+        console.warn('[复制] Clipboard API 失败:', err.message);
       }
+    }
 
-      document.body.removeChild(textarea);
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+    document.body.appendChild(textarea);
+
+    try {
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, text.length);
+
+      const successful = document.execCommand('copy');
+      if (successful) {
+        showToast(successMessage, 'success');
+        return true;
+      }
+    } catch (err) {
+      console.warn('[复制] execCommand(textarea) 失败:', err.message);
+    }
+
+    document.body.removeChild(textarea);
+
+    const input = document.createElement('input');
+    input.value = text;
+    input.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+    document.body.appendChild(input);
+
+    try {
+      input.focus();
+      input.select();
+      input.setSelectionRange(0, text.length);
+
+      const successful = document.execCommand('copy');
+      if (successful) {
+        showToast(successMessage, 'success');
+        return true;
+      }
+    } catch (err) {
+      console.warn('[复制] execCommand(input) 失败:', err.message);
+    }
+
+    document.body.removeChild(input);
+
+    const pre = document.createElement('pre');
+    pre.textContent = text;
+    pre.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+    document.body.appendChild(pre);
+
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(pre);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const successful = document.execCommand('copy');
+      if (successful) {
+        showToast(successMessage, 'success');
+        return true;
+      }
+    } catch (err) {
+      console.warn('[复制] execCommand(pre) 失败:', err.message);
+    }
+
+    document.body.removeChild(pre);
+
+    showToast('链接已生成，请手动复制', 'info');
+    setTimeout(() => {
+      const tempInput = document.createElement('input');
+      tempInput.value = text;
+      tempInput.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+      document.body.appendChild(tempInput);
+      tempInput.focus();
+      tempInput.select();
       
-      const input = document.createElement('input');
-      input.value = text;
-      input.style.position = 'fixed';
-      input.style.left = '-9999px';
-      input.style.top = '-9999px';
-      document.body.appendChild(input);
-
       try {
-        input.focus();
-        input.select();
-        input.setSelectionRange(0, text.length);
-
         const successful = document.execCommand('copy');
         if (successful) {
-          showToast(successMessage, 'success');
-          return true;
-        }
-      } catch (err) {
-        console.warn('[复制] input 方法失败:', err.message);
-      }
-
-      document.body.removeChild(input);
-
-      showToast('链接已生成，请手动复制', 'info');
-      setTimeout(() => {
-        const confirmCopy = confirm(`请手动复制以下链接：\n\n${text}`);
-        if (confirmCopy) {
-          const tempInput = document.createElement('input');
-          tempInput.value = text;
-          document.body.appendChild(tempInput);
-          tempInput.select();
-          document.execCommand('copy');
-          document.body.removeChild(tempInput);
           showToast('链接已复制到剪贴板', 'success');
         }
-      }, 500);
+      } catch (e) {
+        console.warn('[复制] 最后的尝试也失败了');
+      }
+      
+      document.body.removeChild(tempInput);
+    }, 300);
 
-      return false;
-    };
-
-    tryCopy();
+    return false;
   }
 
   function showToast(message, type = 'success') {
@@ -1888,6 +1963,11 @@
   }
 
   function applySharedData(decodedData) {
+    if (decodedData.date && decodedData.schedules && !decodedData.todos && !decodedData.t) {
+      showShareView(decodedData);
+      return;
+    }
+
     if (decodedData.todos) {
       todos = decodedData.todos;
       localStorage.setItem('workbench_todos', JSON.stringify(todos));
@@ -1920,6 +2000,96 @@
     renderTodoList();
     renderTimeline();
     renderGanttChart();
+  }
+
+  function showShareView(shareData) {
+    const shareView = document.getElementById('shareView');
+    const mainContent = document.querySelector('.main-content');
+    const sidebar = document.getElementById('sidebar');
+    const tabBar = document.querySelector('.tab-bar');
+
+    if (shareView) {
+      shareView.classList.remove('hidden');
+    }
+    if (mainContent) {
+      mainContent.style.display = 'none';
+    }
+    if (sidebar) {
+      sidebar.style.display = 'none';
+    }
+    if (tabBar) {
+      tabBar.style.display = 'none';
+    }
+
+    const dateStr = shareData.date;
+    const dateObj = new Date(dateStr);
+    const dateEl = document.getElementById('shareDate');
+    if (dateEl) {
+      dateEl.textContent = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+    }
+
+    const generatedAtEl = document.getElementById('shareGeneratedAt');
+    if (generatedAtEl && shareData.generatedAt) {
+      const genDate = new Date(shareData.generatedAt);
+      generatedAtEl.textContent = `${genDate.getFullYear()}-${String(genDate.getMonth() + 1).padStart(2, '0')}-${String(genDate.getDate()).padStart(2, '0')} ${String(genDate.getHours()).padStart(2, '0')}:${String(genDate.getMinutes()).padStart(2, '0')}`;
+    }
+
+    const scheduleList = document.getElementById('shareScheduleList');
+    if (scheduleList) {
+      const sortedSchedules = [...shareData.schedules].sort((a, b) => a.start.localeCompare(b.start));
+      
+      scheduleList.innerHTML = sortedSchedules.map(schedule => {
+        const statusColor = {
+          'completed': 'bg-success-100 text-success-600',
+          'in-progress': 'bg-info-100 text-info-600',
+          'pending': 'bg-ink-100 text-ink-500',
+          'cancelled': 'bg-danger-100 text-danger-600'
+        }[schedule.status] || 'bg-ink-100 text-ink-500';
+
+        const statusText = {
+          'completed': '已完成',
+          'in-progress': '进行中',
+          'pending': '未开始',
+          'cancelled': '已取消'
+        }[schedule.status] || '未知';
+
+        const quadrantColor = {
+          'urgent-important': 'border-l-4 border-danger-500',
+          'normal-important': 'border-l-4 border-brand-500',
+          'urgent-normal': 'border-l-4 border-warning-500',
+          'normal-normal': 'border-l-4 border-info-500'
+        }[schedule.quadrant] || 'border-l-4 border-ink-300';
+
+        return `
+          <div class="bg-white rounded-xl p-4 shadow-card ${quadrantColor}">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium text-ink-900">${schedule.name}</span>
+              <span class="text-xs font-medium px-2 py-1 rounded-full ${statusColor}">${statusText}</span>
+            </div>
+            <div class="flex items-center gap-4 text-sm text-ink-500">
+              <div class="flex items-center gap-1">
+                <i data-lucide="clock" class="w-4 h-4"></i>
+                <span>${schedule.start} - ${schedule.end}</span>
+              </div>
+              ${schedule.location ? `
+              <div class="flex items-center gap-1">
+                <i data-lucide="map-pin" class="w-4 h-4"></i>
+                <span>${schedule.location}</span>
+              </div>
+              ` : ''}
+            </div>
+            ${schedule.participants ? `
+            <div class="mt-2 flex items-center gap-1 text-sm text-ink-400">
+              <i data-lucide="users" class="w-4 h-4"></i>
+              <span>${schedule.participants}</span>
+            </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+      initIcons();
+    }
   }
 
   // ========== 初始化 ==========
