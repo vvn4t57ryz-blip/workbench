@@ -1612,29 +1612,17 @@
       ? window.SHARE_BASE_URL
       : window.location.origin + window.location.pathname;
 
-    // 1. 立即生成长链接（同步）
-    const longUrl = baseUrl + '?share=' + compressShareData(shareData);
+    // 1. 立即生成压缩链接（同步）
+    const shareUrl = baseUrl + '?share=' + compressShareData(shareData);
 
-    // 2. 立即复制到剪贴板（在用户点击事件上下文中，execCommand同步执行）
-    syncCopyToClipboard(longUrl);
+    // 2. 立即复制到剪贴板（execCommand同步执行）
+    syncCopyToClipboard(shareUrl);
 
     // 3. 显示分享弹窗
-    showShareModal(longUrl, '链接已复制到剪贴板');
-
-    // 4. 后台尝试生成短链接
-    try {
-      const shortUrl = await tryShortenUrl(longUrl, shareData, baseUrl);
-      if (shortUrl && shortUrl !== longUrl) {
-        syncCopyToClipboard(shortUrl);
-        showShareModal(shortUrl, '短链接已复制到剪贴板');
-        showToast('短链接已生成并复制', 'success');
-      }
-    } catch (e) {
-      console.warn('[分享] 短链接生成失败，使用长链接:', e.message);
-    }
+    showShareModal(shareUrl, '链接已复制到剪贴板');
   }
 
-  // 同步复制 - 在用户手势上下文中立即执行
+  // 同步复制到剪贴板
   function syncCopyToClipboard(text) {
     const textarea = document.createElement('textarea');
     textarea.value = text;
@@ -1703,85 +1691,7 @@
     };
   }
 
-  // 尝试生成短链接
-  async function tryShortenUrl(longUrl, shareData, baseUrl) {
-    // 1. 上传数据到jsonblob，获取短ID
-    let cloudId = null;
-    try {
-      cloudId = await uploadToJsonblob(shareData);
-      console.log('[分享] jsonblob ID:', cloudId);
-    } catch (e) {
-      console.warn('[分享] jsonblob失败:', e.message);
-    }
-
-    let targetUrl = longUrl;
-    if (cloudId) {
-      targetUrl = baseUrl + '?s=' + cloudId;
-    }
-
-    // 2. 用短链服务缩短
-    const services = [
-      'https://is.gd/create.php?format=simple&url=',
-      'https://v.gd/create.php?format=simple&url=',
-      'https://tinyurl.com/api-create.php?url='
-    ];
-
-    for (const svc of services) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(svc + encodeURIComponent(targetUrl), { signal: controller.signal });
-        clearTimeout(timeout);
-        if (!res.ok) continue;
-        const text = await res.text();
-        if (text && text.trim().startsWith('http')) {
-          console.log('[短链] 成功:', text.trim());
-          return text.trim();
-        }
-      } catch (e) {
-        console.warn('[短链] 失败:', e.message);
-      }
-    }
-
-    // 3. 短链服务都失败，返回jsonblob ID链接（如果有的话）
-    if (cloudId) return targetUrl;
-
-    throw new Error('短链服务不可用');
-  }
-
-  // 上传数据到jsonblob
-  async function uploadToJsonblob(data) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    const res = await fetch('https://jsonblob.com/api/jsonBlob', {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(data),
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-    if (!res.ok) throw new Error('jsonblob ' + res.status);
-    const loc = res.headers.get('Location') || res.headers.get('location');
-    if (loc) return loc.split('/').pop();
-    throw new Error('无法获取ID');
-  }
-
-  // 从jsonblob加载数据
-  async function loadFromJsonblob(id) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch('https://jsonblob.com/api/jsonBlob/' + id, {
-      method: 'GET', mode: 'cors',
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-    if (!res.ok) throw new Error('jsonblob ' + res.status);
-    return await res.json();
-  }
-
-  // 压缩分享数据
+  // 压缩分享数据 - 极简格式
   function compressShareData(shareData) {
     const mini = shareData.schedules.map(s => {
       return s.name + '|' + s.start + '|' + s.end + '|' + (s.quadrant || '') + '|' + (s.status || '');
@@ -1941,29 +1851,11 @@
 
   async function loadSharedData() {
     const urlParams = new URLSearchParams(window.location.search);
-    const shortId = urlParams.get('s');
     const shareData = urlParams.get('share');
 
-    // 短ID模式：从jsonblob加载数据
-    if (shortId) {
-      try {
-        showToast('正在加载分享数据...', 'info');
-        const data = await loadFromJsonblob(shortId);
-        if (data) {
-          showShareView(data);
-          return;
-        }
-      } catch (e) {
-        console.error('[分享] 加载失败:', e);
-      }
-      showToast('链接已过期或无法加载', 'error');
-      return;
-    }
-
-    // 压缩链接模式
     if (shareData) {
       try {
-        // 先尝试解压新格式
+        // 尝试解压新格式
         const data = decompressShareData(shareData);
         if (data) {
           showShareView(data);
@@ -1982,29 +1874,6 @@
         showToast('加载分享数据失败', 'error');
       }
     }
-  }
-
-  // 从jsonblob加载数据
-  async function loadFromJsonblob(id) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    const res = await fetch('https://jsonblob.com/api/jsonBlob/' + id, {
-      method: 'GET',
-      mode: 'cors',
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) throw new Error('jsonblob返回 ' + res.status);
-
-    const data = await res.json();
-    if (data && data.schedules) {
-      return data;
-    }
-
-    return null;
   }
 
   function applySharedData(decodedData) {
