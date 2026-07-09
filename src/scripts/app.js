@@ -121,6 +121,24 @@
       schedules = window.dataService.getLocalSchedules() || [];
     }
 
+    // 数据迁移：修复之前被错误标记为完成的母任务
+    let dataFixed = false;
+    todos.forEach(todo => {
+      const hasChildSchedules = schedules.some(s => s.parentTodoId === todo.id);
+      if (hasChildSchedules && todo.completed && todo.progress >= 100) {
+        const childSchedules = schedules.filter(s => s.parentTodoId === todo.id);
+        const allChildCompleted = childSchedules.every(s => s.progress >= 100);
+        if (!allChildCompleted) {
+          todo.completed = false;
+          dataFixed = true;
+        }
+      }
+    });
+    if (dataFixed) {
+      await window.dataService.saveTodos(todos);
+      console.log('[App] 已修复被错误标记为完成的母任务');
+    }
+
     // 如果没有数据，初始化默认数据
     if (todos.length === 0) {
       todos = [
@@ -814,7 +832,16 @@
       return;
     }
 
-    container.innerHTML = todos.map(todo => '<div class="todo-item ' + (todo.completed ? 'completed' : '') + '"><div class="todo-checkbox ' + (todo.completed ? 'checked' : '') + '" onclick="toggleTodo(' + todo.id + ')">' + (todo.completed ? '<i data-lucide="check" class="w-4 h-4 text-white"></i>' : '') + '</div><div class="todo-content"><div class="todo-title-row"><span class="todo-type-tag ' + getTodoTypeClass(todo.type) + '">' + getTodoTypeLabel(todo.type) + '</span><span class="todo-title">' + todo.name + '</span></div><div class="todo-meta-row">' + (todo.quadrant ? '<span class="todo-quadrant ' + getQuadrantClass(todo.quadrant) + '">' + getQuadrantLabel(todo.quadrant) + '</span>' : '') + '<span class="todo-priority ' + todo.priority + '">' + (todo.priority === 'high' ? '高' : todo.priority === 'medium' ? '中' : '低') + '</span><span class="todo-progress-text">进度 ' + (todo.progress || 0) + '%</span></div><div class="todo-meta-row">' + (todo.partners ? '<span class="todo-meta-item"><i data-lucide="users" class="w-3 h-3"></i>' + todo.partners + '</span>' : '') + (todo.deadline ? '<span class="todo-meta-item"><i data-lucide="clock" class="w-3 h-3"></i>' + todo.deadline.split('T')[0] + ' ' + (todo.deadline.split('T')[1] ? todo.deadline.split('T')[1].substring(0, 5) : '--:--') + '</span>' : '') + '</div></div><div class="todo-actions"><button class="todo-action-btn" onclick="editTodo(' + todo.id + ')"><i data-lucide="edit-2" class="w-4 h-4"></i></button><button class="todo-action-btn delete" onclick="deleteTodo(' + todo.id + ')"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>').join('');
+    container.innerHTML = todos.map(todo => {
+      const childSchedules = schedules.filter(s => s.parentTodoId === todo.id);
+      let childHtml = '';
+      if (childSchedules.length > 0) {
+        const completedCount = childSchedules.filter(s => s.progress >= 100).length;
+        childHtml = '<div class="todo-child-tasks"><span class="text-xs text-ink-400">' + childSchedules.length + '项子任务</span><span class="text-xs text-success-500">' + completedCount + '/' + childSchedules.length + '已完成</span></div>';
+      }
+      
+      return '<div class="todo-item ' + (todo.completed ? 'completed' : '') + '"><div class="todo-checkbox ' + (todo.completed ? 'checked' : '') + '" onclick="toggleTodo(' + todo.id + ')">' + (todo.completed ? '<i data-lucide="check" class="w-4 h-4 text-white"></i>' : '') + '</div><div class="todo-content"><div class="todo-title-row"><span class="todo-type-tag ' + getTodoTypeClass(todo.type) + '">' + getTodoTypeLabel(todo.type) + '</span><span class="todo-title">' + todo.name + '</span></div>' + childHtml + '<div class="todo-meta-row">' + (todo.quadrant ? '<span class="todo-quadrant ' + getQuadrantClass(todo.quadrant) + '">' + getQuadrantLabel(todo.quadrant) + '</span>' : '') + '<span class="todo-priority ' + todo.priority + '">' + (todo.priority === 'high' ? '高' : todo.priority === 'medium' ? '中' : '低') + '</span><span class="todo-progress-text">进度 ' + (todo.progress || 0) + '%</span></div><div class="todo-meta-row">' + (todo.partners ? '<span class="todo-meta-item"><i data-lucide="users" class="w-3 h-3"></i>' + todo.partners + '</span>' : '') + (todo.deadline ? '<span class="todo-meta-item"><i data-lucide="clock" class="w-3 h-3"></i>' + todo.deadline.split('T')[0] + ' ' + (todo.deadline.split('T')[1] ? todo.deadline.split('T')[1].substring(0, 5) : '--:--') + '</span>' : '') + '</div></div><div class="todo-actions"><button class="todo-action-btn" onclick="editTodo(' + todo.id + ')"><i data-lucide="edit-2" class="w-4 h-4"></i></button><button class="todo-action-btn delete" onclick="deleteTodo(' + todo.id + ')"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>';
+    }).join('');
 
     initIcons();
   }
@@ -1308,10 +1335,6 @@
     
     if (todo) {
       todo.progress = avgProgress;
-      
-      if (avgProgress === 0) {
-        todo.progress = 0;
-      }
     }
   }
 
