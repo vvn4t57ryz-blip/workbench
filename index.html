@@ -87,6 +87,35 @@
 </head>
 <body class="bg-brand-50 text-ink-800 font-sans antialiased min-h-screen">
 
+  <!-- 分享视图 -->
+  <div id="shareView" class="hidden min-h-screen">
+    <div class="max-w-lg mx-auto px-4 py-8">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white shadow-lg mx-auto mb-4">
+          <i data-lucide="calendar" class="w-8 h-8"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-ink-900">日程分享</h1>
+        <p class="text-ink-400 mt-2" id="shareDate">2026年7月9日</p>
+      </div>
+      
+      <div id="shareScheduleList" class="space-y-3">
+      </div>
+
+      <div class="mt-8 text-center">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-ink-50 text-ink-500 text-sm">
+          <i data-lucide="clock" class="w-4 h-4"></i>
+          <span>分享时间：<span id="shareGeneratedAt"></span></span>
+        </div>
+      </div>
+
+      <div class="mt-12 text-center">
+        <button class="px-6 py-3 rounded-xl bg-brand-500 text-white font-medium hover:bg-brand-600 transition-colors" onclick="location.href = window.location.origin + window.location.pathname">
+          返回首页
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 侧边栏（桌面端） -->
   <aside id="sidebar" class="sidebar hidden lg:flex">
     <div class="sidebar-inner">
