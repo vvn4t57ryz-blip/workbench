@@ -1589,6 +1589,43 @@
 
   // ========== 分享链接功能 ==========
 
+  // CORS代理列表，解决跨域问题
+  const CORS_PROXIES = [
+    'https://corsproxy.io/?url=',
+    'https://api.allorigins.win/raw?url=',
+    ''
+  ];
+
+  async function fetchWithCors(url, options = {}) {
+    // 先直接请求（某些API已支持CORS）
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) return res;
+    } catch (e) {
+      console.warn('[CORS] 直接请求失败，尝试代理:', e.message);
+    }
+
+    // 通过CORS代理请求
+    for (const proxy of CORS_PROXIES) {
+      if (!proxy) continue;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const proxyUrl = proxy + encodeURIComponent(url);
+        const res = await fetch(proxyUrl, { ...options, signal: controller.signal });
+        clearTimeout(timeout);
+        if (res.ok) return res;
+      } catch (e) {
+        console.warn('[CORS] 代理 ' + proxy + ' 失败:', e.message);
+      }
+    }
+
+    throw new Error('所有请求方式均失败');
+  }
+
   async function generateShareLink() {
     showToast('正在生成分享链接...', 'info');
 
@@ -1614,7 +1651,7 @@
       ? window.SHARE_BASE_URL
       : window.location.origin + window.location.pathname;
 
-    // 步骤1：上传数据到云端，获取短ID
+    // 方案1：上传数据到云端，生成短ID链接，再用短链服务缩短
     let cloudId = null;
     try {
       cloudId = await uploadShareData(shareData);
@@ -1622,47 +1659,54 @@
       console.warn('[分享] 云端存储失败:', e.message);
     }
 
-    // 步骤2：构造URL
     let shareUrl;
     if (cloudId) {
       // 云端存储成功，使用短ID格式
       shareUrl = baseUrl + '?s=' + cloudId;
-      // 步骤3：尝试用短链接服务进一步缩短
+      console.log('[分享] 云端ID链接:', shareUrl);
+
+      // 再用短链服务缩短
       try {
         const shortUrl = await shortenUrl(shareUrl);
         await copyToClipboard(shortUrl, '分享链接已复制到剪贴板！');
         return;
       } catch (e) {
-        console.warn('[分享] 短链接服务不可用，使用ID链接:', e.message);
+        console.warn('[分享] 短链服务不可用:', e.message);
       }
-    } else {
-      // 云端存储失败，使用长链接
-      shareUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
+
+      // 短链服务失败，但云端ID链接已经比长链接短很多
+      await copyToClipboard(shareUrl, '分享链接已复制到剪贴板！');
+      return;
     }
 
-    await copyToClipboard(shareUrl, '分享链接已复制到剪贴板！');
+    // 方案2：降级，长链接
+    shareUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
+    console.warn('[分享] 使用长链接降级方案');
+
+    // 尝试缩短长链接
+    try {
+      const shortUrl = await shortenUrl(shareUrl);
+      await copyToClipboard(shortUrl, '分享链接已复制到剪贴板！');
+      return;
+    } catch (e) {
+      console.warn('[分享] 短链服务不可用:', e.message);
+    }
+
+    await copyToClipboard(shareUrl, '分享链接已复制（链接较长）');
   }
 
   async function uploadShareData(data) {
-    // npoint.io 返回短ID（如 abc123）
+    // npoint.io - 返回短ID
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch('https://api.npoint.io/', {
+      const res = await fetchWithCors('https://api.npoint.io/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-        signal: controller.signal
+        body: JSON.stringify(data)
       });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.id) {
-          console.log('[分享] npoint ID:', json.id);
-          return json.id;
-        }
+      const json = await res.json();
+      if (json && json.id) {
+        console.log('[分享] npoint ID:', json.id);
+        return json.id;
       }
     } catch (e) {
       console.warn('[分享] npoint 不可用:', e.message);
@@ -1670,24 +1714,16 @@
 
     // 降级：jsonblob
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch('https://jsonblob.com/api/jsonBlob', {
+      const res = await fetchWithCors('https://jsonblob.com/api/jsonBlob', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(data),
-        signal: controller.signal
+        body: JSON.stringify(data)
       });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        const loc = res.headers.get('Location') || res.headers.get('location');
-        if (loc) {
-          const id = loc.split('/').pop();
-          console.log('[分享] jsonblob ID:', id);
-          return id;
-        }
+      const loc = res.headers.get('Location') || res.headers.get('location');
+      if (loc) {
+        const id = loc.split('/').pop();
+        console.log('[分享] jsonblob ID:', id);
+        return id;
       }
     } catch (e) {
       console.warn('[分享] jsonblob 不可用:', e.message);
@@ -1699,17 +1735,10 @@
   async function loadSharedDataFromCloud(id) {
     // 尝试 npoint
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch('https://api.npoint.io/' + id, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data && (data.schedules || data.todos || data.s || data.t)) {
-          return data;
-        }
+      const res = await fetchWithCors('https://api.npoint.io/' + id);
+      const data = await res.json();
+      if (data && (data.schedules || data.todos || data.s || data.t)) {
+        return data;
       }
     } catch (e) {
       console.warn('[分享] npoint 加载失败:', e.message);
@@ -1717,17 +1746,10 @@
 
     // 尝试 jsonblob
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch('https://jsonblob.com/api/jsonBlob/' + id, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data && (data.schedules || data.todos || data.s || data.t)) {
-          return data;
-        }
+      const res = await fetchWithCors('https://jsonblob.com/api/jsonBlob/' + id);
+      const data = await res.json();
+      if (data && (data.schedules || data.todos || data.s || data.t)) {
+        return data;
       }
     } catch (e) {
       console.warn('[分享] jsonblob 加载失败:', e.message);
@@ -1737,45 +1759,25 @@
   }
 
   async function shortenUrl(longUrl) {
-    // is.gd 支持CORS，返回纯文本短链接
+    // is.gd - 支持CORS，返回纯文本
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(longUrl), {
-        method: 'GET',
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        const text = await res.text();
-        if (text && text.trim().startsWith('http')) {
-          console.log('[短链] is.gd 成功:', text.trim());
-          return text.trim();
-        }
+      const res = await fetchWithCors('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(longUrl));
+      const text = await res.text();
+      if (text && text.trim().startsWith('http')) {
+        console.log('[短链] is.gd 成功:', text.trim());
+        return text.trim();
       }
     } catch (e) {
       console.warn('[短链] is.gd 失败:', e.message);
     }
 
-    // 降级：tinyurl
+    // tinyurl
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl), {
-        method: 'GET',
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        const text = await res.text();
-        if (text && text.trim().startsWith('http')) {
-          console.log('[短链] tinyurl 成功:', text.trim());
-          return text.trim();
-        }
+      const res = await fetchWithCors('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(longUrl));
+      const text = await res.text();
+      if (text && text.trim().startsWith('http')) {
+        console.log('[短链] tinyurl 成功:', text.trim());
+        return text.trim();
       }
     } catch (e) {
       console.warn('[短链] tinyurl 失败:', e.message);
