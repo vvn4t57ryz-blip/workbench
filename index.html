@@ -431,6 +431,14 @@
             <span class="text-xs text-ink-400">浅色模式</span>
             <i data-lucide="chevron-right" class="w-4 h-4 text-ink-300"></i>
           </button>
+          <button class="setting-item w-full flex items-center gap-4 px-4 py-3.5 hover:bg-ink-50 transition-colors border-b border-ink-50" onclick="openModal('syncModal')">
+            <div class="w-9 h-9 rounded-lg bg-info-50 flex items-center justify-center text-info-500">
+              <i data-lucide="cloud-sync" class="w-5 h-5"></i>
+            </div>
+            <span class="flex-1 text-left text-sm text-ink-700">数据同步</span>
+            <span class="text-xs text-ink-400" id="syncStatus">未同步</span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-ink-300"></i>
+          </button>
           <button class="setting-item w-full flex items-center gap-4 px-4 py-3.5 hover:bg-ink-50 transition-colors" onclick="showToast('通用设置功能开发中', 'info')">
             <div class="w-9 h-9 rounded-lg bg-ink-100 flex items-center justify-center text-ink-500">
               <i data-lucide="settings" class="w-5 h-5"></i>
@@ -671,7 +679,6 @@
       <div class="modal-body">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <span class="text-sm text-ink-500">今日</span>
             <span class="text-sm font-semibold text-ink-900">共 <span id="todoListCount">8</span> 项</span>
             <span class="text-sm text-success-600">已完成 <span id="todoListCompleted">3</span> 项</span>
           </div>
@@ -956,6 +963,77 @@
               <h4 class="text-sm font-medium text-ink-900 truncate">本周爆款短剧TOP10盘点，都市情感类领跑热度榜</h4>
               <p class="text-xs text-ink-400 mt-1">短剧观察 · 5小时前</p>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据同步弹窗 -->
+  <div id="syncModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="text-lg font-semibold text-ink-900 flex items-center gap-2">
+          <i data-lucide="cloud-sync" class="w-5 h-5 text-info-500"></i>
+          数据同步
+        </h3>
+        <button class="modal-close" onclick="closeModal('syncModal')">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="space-y-4">
+          <div class="bg-ink-50 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm text-ink-600">当前存储模式</span>
+              <span class="text-xs font-medium px-2 py-1 rounded-full" id="storageModeTag">本地存储</span>
+            </div>
+            <p class="text-xs text-ink-400">数据存储在当前设备，更换设备无法同步</p>
+          </div>
+
+          <div id="syncLoginSection">
+            <div class="space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">邮箱</label>
+                <input type="email" id="syncEmail" class="w-full px-4 py-2.5 rounded-xl bg-ink-50 border-none text-sm text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all" placeholder="请输入邮箱" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-ink-500 mb-1.5">密码</label>
+                <input type="password" id="syncPassword" class="w-full px-4 py-2.5 rounded-xl bg-ink-50 border-none text-sm text-ink-800 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-200 transition-all" placeholder="请输入密码" />
+              </div>
+              <div class="flex gap-3">
+                <button class="flex-1 py-2.5 rounded-xl bg-ink-100 text-ink-600 text-sm font-medium hover:bg-ink-200 transition-colors" onclick="handleSignUp()">注册</button>
+                <button class="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors" onclick="handleSignIn()">登录</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="syncLoggedInSection" class="hidden">
+            <div class="flex items-center gap-3 mb-4 p-3 bg-success-50 rounded-xl">
+              <div class="w-8 h-8 rounded-full bg-success-500 flex items-center justify-center text-white">
+                <i data-lucide="check" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="text-sm font-medium text-success-700" id="syncUserEmail">已登录</div>
+                <div class="text-xs text-success-600">数据已同步到云端</div>
+              </div>
+            </div>
+            <div class="space-y-3">
+              <button class="w-full py-2.5 rounded-xl bg-info-500 text-white text-sm font-medium hover:bg-info-600 transition-colors flex items-center justify-center gap-2" onclick="handleSyncFromCloud()">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                从云端同步数据
+              </button>
+              <button class="w-full py-2.5 rounded-xl bg-success-500 text-white text-sm font-medium hover:bg-success-600 transition-colors flex items-center justify-center gap-2" onclick="handleSyncToCloud()">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                将本地数据上传到云端
+              </button>
+              <button class="w-full py-2.5 rounded-xl bg-danger-50 text-danger-600 text-sm font-medium hover:bg-danger-100 transition-colors" onclick="handleSignOut()">退出登录</button>
+            </div>
+          </div>
+
+          <div class="text-xs text-ink-400 text-center pt-2">
+            <p>登录后可实现多设备数据同步</p>
+            <p class="mt-1">数据安全加密存储，仅您可见</p>
           </div>
         </div>
       </div>
