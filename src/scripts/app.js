@@ -161,6 +161,7 @@
     updateWarningBadge();
     renderTodoList();
     renderTimeline();
+    renderWarningQuadrants();
   }
 
   async function saveSchedules() {
@@ -173,6 +174,7 @@
     updateStats();
     updateWarningBadge();
     renderTimeline();
+    renderWarningQuadrants();
   }
 
   // ========== 初始化 Lucide 图标 ==========
@@ -261,18 +263,17 @@
   // ========== 统计更新 ==========
   function updateStats() {
     const today = new Date().toISOString().split('T')[0];
-    const todayTodos = todos.filter(t => !t.completed);
-    const completedTodos = todos.filter(t => t.completed);
-    const todaySchedules = schedules.filter(s => s.date === today);
     const totalTodos = todos.length;
+    const completedTodos = todos.filter(t => t.completed);
     const completedCount = completedTodos.length;
+    const todaySchedules = schedules.filter(s => s.date === today);
     const rate = totalTodos > 0 ? ((completedCount / totalTodos) * 100).toFixed(1) : 0;
 
-    document.getElementById('statTodos').textContent = todayTodos.length;
+    document.getElementById('statTodos').textContent = totalTodos;
     document.getElementById('statCompleted').textContent = completedCount;
     document.getElementById('statSchedules').textContent = todaySchedules.length;
 
-    document.getElementById('todoCount').textContent = todayTodos.length;
+    document.getElementById('todoCount').textContent = totalTodos;
     document.getElementById('scheduleCount').textContent = todaySchedules.length;
 
     document.getElementById('todoListCount').textContent = totalTodos;
@@ -303,20 +304,24 @@
     }
 
     const meetingEls = document.getElementById('scheduleTimesContainer');
-    if (meetingEls && todaySchedules.length > 0) {
-      const sortedSchedules = [...todaySchedules].sort((a, b) => a.start.localeCompare(b.start));
-      const displayCount = Math.min(sortedSchedules.length, 3);
-      const colors = ['bg-info-100 text-info-600', 'bg-brand-100 text-brand-600', 'bg-success-100 text-success-600'];
-      
-      meetingEls.innerHTML = '';
-      for (let i = 0; i < displayCount; i++) {
-        const schedule = sortedSchedules[i];
-        const time = schedule.start.slice(0, 5);
-        const colorClass = colors[i % colors.length];
-        const div = document.createElement('div');
-        div.className = `w-7 h-7 rounded-full ${colorClass} border-2 border-white flex items-center justify-center`;
-        div.innerHTML = `<span class="text-[9px] font-medium">${time}</span>`;
-        meetingEls.appendChild(div);
+    if (meetingEls) {
+      if (todaySchedules.length > 0) {
+        const sortedSchedules = [...todaySchedules].sort((a, b) => a.start.localeCompare(b.start));
+        const displayCount = Math.min(sortedSchedules.length, 3);
+        const colors = ['bg-info-100 text-info-600', 'bg-brand-100 text-brand-600', 'bg-success-100 text-success-600'];
+        
+        meetingEls.innerHTML = '';
+        for (let i = 0; i < displayCount; i++) {
+          const schedule = sortedSchedules[i];
+          const time = schedule.start.slice(0, 5);
+          const colorClass = colors[i % colors.length];
+          const div = document.createElement('div');
+          div.className = `w-7 h-7 rounded-full ${colorClass} border-2 border-white flex items-center justify-center`;
+          div.innerHTML = `<span class="text-[9px] font-medium">${time}</span>`;
+          meetingEls.appendChild(div);
+        }
+      } else {
+        meetingEls.innerHTML = '';
       }
     }
   }
@@ -370,13 +375,25 @@
     });
     
     const today = now.toISOString().split('T')[0];
-    const todaySchedules = schedules.filter(s => s.date === today && s.status !== 'completed' && s.status !== 'cancelled' && !s.parentTodoId);
     
-    todaySchedules.forEach(schedule => {
+    const warningTodoIds = new Set(warnings.map(w => w.id));
+    
+    schedules.forEach(schedule => {
+      if (schedule.status === 'completed' || schedule.status === 'cancelled') return;
+      
+      if (schedule.parentTodoId && warningTodoIds.has(schedule.parentTodoId)) {
+        return;
+      }
+      
+      const scheduleDate = schedule.date;
+      if (!scheduleDate) return;
+      
+      const scheduleDateTime = new Date(scheduleDate + 'T' + (schedule.start || '00:00'));
+      const hoursToSchedule = (scheduleDateTime - now) / (1000 * 60 * 60);
+      
+      if (hoursToSchedule > 168) return;
+      
       const progress = schedule.progress || 0;
-      const startHour = parseInt(schedule.start.split(':')[0]);
-      const currentHour = now.getHours();
-      const hoursUntil = startHour - currentHour;
       
       let isUrgent = false;
       let isImportant = false;
@@ -385,11 +402,11 @@
         isUrgent = schedule.quadrant.includes('urgent');
         isImportant = schedule.quadrant.includes('important');
       } else {
-        isUrgent = hoursUntil < 3;
+        isUrgent = hoursToSchedule < 24;
         isImportant = progress < 30;
       }
       
-      if (progress < 80 && hoursUntil < 24) {
+      if (progress < 80) {
         warnings.push({
           type: 'schedule',
           id: schedule.id,
@@ -400,7 +417,7 @@
           partners: schedule.participants,
           isUrgent: isUrgent,
           isImportant: isImportant,
-          hoursToDeadline: hoursUntil
+          hoursToDeadline: hoursToSchedule
         });
       }
     });
@@ -606,6 +623,9 @@
     }
     if (modalId === 'notificationModal') {
       renderNotificationList();
+    }
+    if (modalId === 'syncModal') {
+      updateSyncStatus();
     }
   }
 
@@ -1164,7 +1184,8 @@
     if (id) {
       const index = schedules.findIndex(s => s.id === parseInt(id));
       if (index !== -1) {
-        schedule.parentTodoId = schedules[index].parentTodoId;
+        const oldSchedule = schedules[index];
+        schedule.parentTodoId = oldSchedule.parentTodoId;
         schedules[index] = schedule;
         
         if (window.dataService) {
@@ -1174,8 +1195,16 @@
         if (schedule.parentTodoId) {
           updateTodoProgressFromSchedules(schedule.parentTodoId);
           const todo = todos.find(t => t.id === schedule.parentTodoId);
-          if (todo && schedule.quadrant) {
-            todo.quadrant = schedule.quadrant;
+          if (todo) {
+            if (schedule.quadrant) {
+              todo.quadrant = schedule.quadrant;
+            }
+            if (schedule.participants) {
+              todo.partners = schedule.participants;
+            }
+            if (schedule.note) {
+              todo.description = schedule.note;
+            }
           }
         }
       }
@@ -1221,9 +1250,7 @@
     renderGanttChart();
     renderTimeline();
     
-    if (!document.getElementById('warningModal').classList.contains('hidden')) {
-      renderWarningQuadrants();
-    }
+    renderWarningQuadrants();
     
     closeModal('scheduleEditModal');
     openModal('ganttModal');
@@ -1238,8 +1265,6 @@
         await window.dataService.deleteSchedule(id);
       }
       
-      await saveSchedules();
-      
       if (schedule && schedule.parentTodoId) {
         const hasOtherSchedules = schedules.some(s => s.parentTodoId === schedule.parentTodoId);
         if (!hasOtherSchedules) {
@@ -1247,23 +1272,26 @@
           if (window.dataService) {
             await window.dataService.deleteTodo(schedule.parentTodoId);
           }
-          await saveTodos();
-          renderTodoList();
         } else {
           updateTodoProgressFromSchedules(schedule.parentTodoId);
-          await saveTodos();
+          const relatedTodo = todos.find(t => t.id === schedule.parentTodoId);
+          if (relatedTodo) {
+            const firstSchedule = schedules.find(s => s.parentTodoId === schedule.parentTodoId);
+            if (firstSchedule && firstSchedule.quadrant) {
+              relatedTodo.quadrant = firstSchedule.quadrant;
+            }
+          }
         }
       }
       
+      await saveSchedules();
+      await saveTodos();
       updateStats();
       updateWarningBadge();
       renderTodoList();
       renderGanttChart();
       renderTimeline();
-      
-      if (!document.getElementById('warningModal').classList.contains('hidden')) {
-        renderWarningQuadrants();
-      }
+      renderWarningQuadrants();
       
       closeModal('scheduleEditModal');
       openModal('ganttModal');
@@ -1277,12 +1305,12 @@
     
     const avgProgress = Math.round(relatedSchedules.reduce((sum, s) => sum + (s.progress || 0), 0) / relatedSchedules.length);
     const todo = todos.find(t => t.id === todoId);
+    
     if (todo) {
       todo.progress = avgProgress;
-      if (avgProgress >= 100 && relatedSchedules.every(s => s.status === 'completed')) {
-        todo.completed = true;
-      } else if (avgProgress < 100) {
-        todo.completed = false;
+      
+      if (avgProgress === 0) {
+        todo.progress = 0;
       }
     }
   }
@@ -1551,38 +1579,17 @@
       ? window.SHARE_BASE_URL
       : window.location.origin + window.location.pathname;
 
-    // 方案1：数据存云端 + 短链服务缩短（最短）
-    try {
-      const id = await uploadShareData(shareData);
-      const urlWithId = baseUrl + '?s=' + id;
-      const shortUrl = await shortenUrl(urlWithId);
-      copyToClipboard(shortUrl, '短链接已复制到剪贴板！');
-      return;
-    } catch (e) {
-      console.warn('[分享] 方案1失败:', e.message);
-    }
-
-    // 方案2：只用短链服务缩短长链接
-    try {
-      const longUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
-      const shortUrl = await shortenUrl(longUrl);
-      copyToClipboard(shortUrl, '短链接已复制到剪贴板！');
-      return;
-    } catch (e) {
-      console.warn('[分享] 方案2失败:', e.message);
-    }
-
-    // 方案3：只用云端存储（无短链）
+    // 方案1：数据存云端，生成短链接
     try {
       const id = await uploadShareData(shareData);
       const shareUrl = baseUrl + '?s=' + id;
       copyToClipboard(shareUrl, '分享链接已复制到剪贴板！');
       return;
     } catch (e) {
-      console.warn('[分享] 方案3失败:', e.message);
+      console.warn('[分享] 云端存储失败:', e.message);
     }
 
-    // 方案4：降级，压缩数据放 URL
+    // 方案2：降级，压缩数据放 URL
     try {
       const compressedUrl = baseUrl + '?share=' + btoa(unescape(encodeURIComponent(JSON.stringify({
         t: shareData.todos.map(t => ({ n: t.name, d: t.deadline, q: t.quadrant, p: t.progress, c: t.completed ? 1 : 0 })),
@@ -1719,27 +1726,82 @@
   }
 
   function copyToClipboard(text, successMessage) {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.top = '-1000px';
-    textarea.style.left = '-1000px';
-    document.body.appendChild(textarea);
-    textarea.select();
-    textarea.setSelectionRange(0, text.length);
-
-    try {
-      const successful = document.execCommand('copy');
-      if (successful) {
-        showToast(successMessage, 'success');
-      } else {
-        showToast('复制失败，请手动复制链接', 'error');
+    const tryCopy = async () => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast(successMessage, 'success');
+          return true;
+        } catch (err) {
+          console.warn('[复制] Clipboard API 失败:', err.message);
+        }
       }
-    } catch (err) {
-      showToast('复制失败，请手动复制链接', 'error');
-    }
 
-    document.body.removeChild(textarea);
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+
+      try {
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, text.length);
+
+        const successful = document.execCommand('copy');
+        if (successful) {
+          showToast(successMessage, 'success');
+          return true;
+        }
+      } catch (err) {
+        console.warn('[复制] execCommand 失败:', err.message);
+      }
+
+      document.body.removeChild(textarea);
+      
+      const input = document.createElement('input');
+      input.value = text;
+      input.style.position = 'fixed';
+      input.style.left = '-9999px';
+      input.style.top = '-9999px';
+      document.body.appendChild(input);
+
+      try {
+        input.focus();
+        input.select();
+        input.setSelectionRange(0, text.length);
+
+        const successful = document.execCommand('copy');
+        if (successful) {
+          showToast(successMessage, 'success');
+          return true;
+        }
+      } catch (err) {
+        console.warn('[复制] input 方法失败:', err.message);
+      }
+
+      document.body.removeChild(input);
+
+      showToast('链接已生成，请手动复制', 'info');
+      setTimeout(() => {
+        const confirmCopy = confirm(`请手动复制以下链接：\n\n${text}`);
+        if (confirmCopy) {
+          const tempInput = document.createElement('input');
+          tempInput.value = text;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+          showToast('链接已复制到剪贴板', 'success');
+        }
+      }, 500);
+
+      return false;
+    };
+
+    tryCopy();
   }
 
   function showToast(message, type = 'success') {
@@ -1847,6 +1909,7 @@
     updateDate();
     updateStats();
     updateWarningBadge();
+    updateSyncStatus();
     renderTimeline();
     renderNewsList(newsData);
     initModalSystem();
@@ -1899,4 +1962,138 @@
   window.deleteScheduleFromEdit = deleteScheduleFromEdit;
   window.populateTodoSelect = populateTodoSelect;
   window.updateWarningBadge = updateWarningBadge;
+
+  // ========== 数据同步功能 ==========
+  async function handleSignIn() {
+    const email = document.getElementById('syncEmail').value;
+    const password = document.getElementById('syncPassword').value;
+    
+    if (!email || !password) {
+      showToast('请输入邮箱和密码', 'error');
+      return;
+    }
+
+    const result = await window.supabaseClient.signIn(email, password);
+    
+    if (result.success) {
+      showToast('登录成功，数据将自动同步', 'success');
+      updateSyncStatus();
+      
+      setTimeout(async () => {
+        await window.dataService.syncFromCloud();
+        todos = await window.dataService.getTodos();
+        schedules = await window.dataService.getSchedules();
+        
+        updateStats();
+        updateWarningBadge();
+        renderTodoList();
+        renderGanttChart();
+        renderTimeline();
+        
+        showToast('数据已从云端同步', 'success');
+      }, 1000);
+    } else {
+      showToast('登录失败：' + result.error, 'error');
+    }
+  }
+
+  async function handleSignUp() {
+    const email = document.getElementById('syncEmail').value;
+    const password = document.getElementById('syncPassword').value;
+    
+    if (!email || !password) {
+      showToast('请输入邮箱和密码', 'error');
+      return;
+    }
+
+    const result = await window.supabaseClient.signUp(email, password);
+    
+    if (result.success) {
+      showToast('注册成功，请登录', 'success');
+    } else {
+      showToast('注册失败：' + result.error, 'error');
+    }
+  }
+
+  async function handleSignOut() {
+    await window.supabaseClient.signOut();
+    updateSyncStatus();
+    showToast('已退出登录，数据保留在本地', 'info');
+  }
+
+  async function handleSyncFromCloud() {
+    showToast('正在从云端同步数据...', 'info');
+    
+    try {
+      await window.dataService.syncFromCloud();
+      todos = await window.dataService.getTodos();
+      schedules = await window.dataService.getSchedules();
+      
+      updateStats();
+      updateWarningBadge();
+      renderTodoList();
+      renderGanttChart();
+      renderTimeline();
+      
+      showToast('数据同步成功', 'success');
+    } catch (error) {
+      showToast('同步失败：' + error.message, 'error');
+    }
+  }
+
+  async function handleSyncToCloud() {
+    showToast('正在上传数据到云端...', 'info');
+    
+    try {
+      await window.dataService.syncToCloud();
+      showToast('数据上传成功', 'success');
+    } catch (error) {
+      showToast('上传失败：' + error.message, 'error');
+    }
+  }
+
+  function updateSyncStatus() {
+    const isUsingCloud = window.dataService && window.dataService.isUsingCloud();
+    const user = window.supabaseClient?.getCurrentUser();
+    
+    const statusEl = document.getElementById('syncStatus');
+    const modeTag = document.getElementById('storageModeTag');
+    const loginSection = document.getElementById('syncLoginSection');
+    const loggedInSection = document.getElementById('syncLoggedInSection');
+    const userEmail = document.getElementById('syncUserEmail');
+    
+    if (isUsingCloud && user) {
+      if (statusEl) {
+        statusEl.textContent = '已同步';
+        statusEl.classList.remove('text-ink-400');
+        statusEl.classList.add('text-success-500');
+      }
+      if (modeTag) {
+        modeTag.textContent = '云端存储';
+        modeTag.className = 'text-xs font-medium px-2 py-1 rounded-full bg-success-50 text-success-600';
+      }
+      if (loginSection) loginSection.classList.add('hidden');
+      if (loggedInSection) loggedInSection.classList.remove('hidden');
+      if (userEmail) userEmail.textContent = user.email;
+    } else {
+      if (statusEl) {
+        statusEl.textContent = '未同步';
+        statusEl.classList.remove('text-success-500');
+        statusEl.classList.add('text-ink-400');
+      }
+      if (modeTag) {
+        modeTag.textContent = '本地存储';
+        modeTag.className = 'text-xs font-medium px-2 py-1 rounded-full bg-ink-100 text-ink-500';
+      }
+      if (loginSection) loginSection.classList.remove('hidden');
+      if (loggedInSection) loggedInSection.classList.add('hidden');
+    }
+  }
+
+  window.handleSignIn = handleSignIn;
+  window.handleSignUp = handleSignUp;
+  window.handleSignOut = handleSignOut;
+  window.handleSyncFromCloud = handleSyncFromCloud;
+  window.handleSyncToCloud = handleSyncToCloud;
+  window.updateSyncStatus = updateSyncStatus;
 })();
