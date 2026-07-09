@@ -641,6 +641,13 @@ body {
   color: #A8988A;
 }
 
+.todo-child-tasks {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
 .todo-checkbox {
   width: 20px;
   height: 20px;
